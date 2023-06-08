@@ -1,0 +1,31 @@
+{
+  "[python]": {
+    "editor.formatOnPaste": false,
+    "editor.formatOnSaveMode": "file",
+    "editor.defaultFormatter": "ms-python.python",
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": true
+    }
+  },
+  "editor.formatOnSave": true,
+  "isort.args": ["--profile", "black"],
+  "python.formatting.provider": "black",
+  "python.analysis.typeCheckingMode": "basic",
+  "python.linting.pylintEnabled": true,
+  "python.linting.flake8Enabled": true,
+  "python.linting.mypyEnabled": true,
+  "python.linting.mypyArgs": [
+    "--follow-imports=silent",
+    "--ignore-missing-imports",
+    "--show-column-numbers",
+    "--no-pretty",
+    "--warn-unreachable",
+    "--strict"
+  ],
+  // TODO: Update
+  "python.linting.mypyPath": "",
+  "python.linting.flake8Path": "",
+  "python.linting.pylintPath": "",
+  "python.formatting.blackPath": "",
+  "python.defaultInterpreterPath": ""
+}
