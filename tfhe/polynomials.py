@@ -55,13 +55,13 @@ def polynomial_size(p):
 
 
 def prepare_ifft_input_(rev_in, a, coeff, N):
-    rev_in[:,:N] = a * coeff
-    rev_in[:,N:] = -rev_in[:,:N]
+    rev_in[:, :N] = a * coeff
+    rev_in[:, N:] = -rev_in[:, :N]
 
 
 def prepare_ifft_output_(res, rev_out, N):
     # FIXME: when Julia is smart enough, can be replaced by:
-    res[:,:N//2] = rev_out[:,1:N+1:2]
+    res[:, : N // 2] = rev_out[:, 1 : N + 1 : 2]
 
 
 def ip_ifft_(result: LagrangeHalfCPolynomialArray, p: IntPolynomialArray):
@@ -70,7 +70,7 @@ def ip_ifft_(result: LagrangeHalfCPolynomialArray, p: IntPolynomialArray):
     N = polynomial_size(p)
 
     in_arr = numpy.empty((res.shape[0], 2 * N), numpy.float64)
-    prepare_ifft_input_(in_arr, a, 1/2, N)
+    prepare_ifft_input_(in_arr, a, 1 / 2, N)
     out_arr = numpy.fft.rfft(in_arr)
     prepare_ifft_output_(res, out_arr, N)
 
@@ -87,12 +87,12 @@ def tp_ifft_(result: LagrangeHalfCPolynomialArray, p: TorusPolynomialArray):
 
 
 def prepare_fft_input_(fw_in, a, N):
-    fw_in[:,0:N+1:2] = 0
-    fw_in[:,1:N+1:2] = a
+    fw_in[:, 0 : N + 1 : 2] = 0
+    fw_in[:, 1 : N + 1 : 2] = a
 
 
 def prepare_fft_output_(res, fw_out, coeff, N):
-    res[:,:] = float_to_int32(fw_out[:,:N] * coeff)
+    res[:, :] = float_to_int32(fw_out[:, :N] * coeff)
 
 
 def tp_fft_(result: TorusPolynomialArray, p: LagrangeHalfCPolynomialArray):
@@ -111,8 +111,8 @@ def tp_fft_(result: TorusPolynomialArray, p: LagrangeHalfCPolynomialArray):
 
 
 def tp_add_mul_(
-        result: TorusPolynomialArray, poly1: IntPolynomialArray, poly2: TorusPolynomialArray):
-
+    result: TorusPolynomialArray, poly1: IntPolynomialArray, poly2: TorusPolynomialArray
+):
     N = polynomial_size(result)
     tmp1 = LagrangeHalfCPolynomialArray(N, poly1.shape)
     tmp2 = LagrangeHalfCPolynomialArray(N, poly2.shape)
@@ -125,7 +125,8 @@ def tp_add_mul_(
     tp_add_to_(result, tmpr)
 
 
-#MISC OPERATIONS
+# MISC OPERATIONS
+
 
 # sets to zero
 def lp_clear_(reps: LagrangeHalfCPolynomialArray):
@@ -134,14 +135,15 @@ def lp_clear_(reps: LagrangeHalfCPolynomialArray):
 
 # termwise multiplication in Lagrange space */
 def lp_mul_(
-        result: LagrangeHalfCPolynomialArray,
-        a: LagrangeHalfCPolynomialArray,
-        b: LagrangeHalfCPolynomialArray):
-
+    result: LagrangeHalfCPolynomialArray,
+    a: LagrangeHalfCPolynomialArray,
+    b: LagrangeHalfCPolynomialArray,
+):
     numpy.copyto(result.coefsC, a.coefsC * b.coefsC)
 
 
 # Torus polynomial functions
+
 
 # TorusPolynomial = 0
 def tp_clear_(result: TorusPolynomialArray):
@@ -162,12 +164,20 @@ def tp_mul_by_xai_minus_one_(out: TorusPolynomialArray, ais, in_: TorusPolynomia
     for i in range(out.shape[0]):
         ai = ais[i]
         if ai < N:
-            out_c[i,:,:ai] = -in_c[i,:,(N-ai):N] - in_c[i,:,:ai] # sur que i-a<0
-            out_c[i,:,ai:N] = in_c[i,:,:(N-ai)] - in_c[i,:,ai:N] # sur que N>i-a>=0
+            out_c[i, :, :ai] = (
+                -in_c[i, :, (N - ai) : N] - in_c[i, :, :ai]
+            )  # sur que i-a<0
+            out_c[i, :, ai:N] = (
+                in_c[i, :, : (N - ai)] - in_c[i, :, ai:N]
+            )  # sur que N>i-a>=0
         else:
             aa = ai - N
-            out_c[i,:,:aa] = in_c[i,:,(N-aa):N] - in_c[i,:,:aa] # sur que i-a<0
-            out_c[i,:,aa:N] = -in_c[i,:,:(N-aa)] - in_c[i,:,aa:N] # sur que N>i-a>=0
+            out_c[i, :, :aa] = (
+                in_c[i, :, (N - aa) : N] - in_c[i, :, :aa]
+            )  # sur que i-a<0
+            out_c[i, :, aa:N] = (
+                -in_c[i, :, : (N - aa)] - in_c[i, :, aa:N]
+            )  # sur que N>i-a>=0
 
 
 # result= X^{a}*source
@@ -179,9 +189,9 @@ def tp_mul_by_xai_(out, ais, in_):
     for i in range(out.shape[0]):
         ai = ais[i]
         if ai < N:
-            out_c[i,:ai] = -in_c[i,(N-ai):N] # sur que i-a<0
-            out_c[i,ai:N] = in_c[i,:(N-ai)] # sur que N>i-a>=0
+            out_c[i, :ai] = -in_c[i, (N - ai) : N]  # sur que i-a<0
+            out_c[i, ai:N] = in_c[i, : (N - ai)]  # sur que N>i-a>=0
         else:
             aa = ai - N
-            out_c[i,:aa] = in_c[i,(N-aa):N] # sur que i-a<0
-            out_c[i,aa:N] = -in_c[i,:(N-aa)] # sur que N>i-a>=0
+            out_c[i, :aa] = in_c[i, (N - aa) : N]  # sur que i-a<0
+            out_c[i, aa:N] = -in_c[i, : (N - aa)]  # sur que N>i-a>=0

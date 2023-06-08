@@ -1,5 +1,6 @@
-import numpy
 import time
+
+import numpy
 
 from tfhe import *
 
@@ -20,7 +21,6 @@ def reference_mux(bits1, bits2, bits3):
 
 
 def encrypt():
-
     rng = numpy.random.RandomState(123)
 
     print("Key generation:")

@@ -5,8 +5,8 @@ from .tgsw import *
 
 
 def lwe_bootstrapping_key(
-        rng, ks_t: int, ks_basebit: int, key_in: LweKey, rgsw_key: TGswKey):
-
+    rng, ks_t: int, ks_basebit: int, key_in: LweKey, rgsw_key: TGswKey
+):
     bk_params = rgsw_key.params
     in_out_params = key_in.params
     accum_params = bk_params.tlwe_params
@@ -30,8 +30,9 @@ def lwe_bootstrapping_key(
 
 
 class LweBootstrappingKeyFFT:
-
-    def __init__(self, rng, ks_t: int, ks_basebit: int, lwe_key: LweKey, tgsw_key: TGswKey):
+    def __init__(
+        self, rng, ks_t: int, ks_basebit: int, lwe_key: LweKey, tgsw_key: TGswKey
+    ):
         in_out_params = lwe_key.params
         bk_params = tgsw_key.params
         accum_params = bk_params.tlwe_params
@@ -45,19 +46,27 @@ class LweBootstrappingKeyFFT:
         bkFFT = TGswSampleFFTArray(bk_params, (n,))
         tGswToFFTConvert(bkFFT, bk, bk_params)
 
-        self.in_out_params = in_out_params # paramètre de l'input et de l'output. key: s
-        self.bk_params = bk_params # params of the Gsw elems in bk. key: s"
-        self.accum_params = accum_params # params of the accum variable key: s"
-        self.extract_params = extract_params # params after extraction: key: s'
-        self.bkFFT = bkFFT # the bootstrapping key (s->s")
-        self.ks = ks # the keyswitch key (s'->s)
+        self.in_out_params = (
+            in_out_params  # paramètre de l'input et de l'output. key: s
+        )
+        self.bk_params = bk_params  # params of the Gsw elems in bk. key: s"
+        self.accum_params = accum_params  # params of the accum variable key: s"
+        self.extract_params = extract_params  # params after extraction: key: s'
+        self.bkFFT = bkFFT  # the bootstrapping key (s->s")
+        self.ks = ks  # the keyswitch key (s'->s)
 
 
 def tfhe_MuxRotate_FFT(
-        result: TLweSampleArray, accum: TLweSampleArray, bki: TGswSampleFFTArray, bk_idx: int,
-        barai, bk_params: TGswParams, tmpa: TLweSampleFFTArray,
-        deca: IntPolynomialArray, decaFFT: LagrangeHalfCPolynomialArray):
-
+    result: TLweSampleArray,
+    accum: TLweSampleArray,
+    bki: TGswSampleFFTArray,
+    bk_idx: int,
+    barai,
+    bk_params: TGswParams,
+    tmpa: TLweSampleFFTArray,
+    deca: IntPolynomialArray,
+    decaFFT: LagrangeHalfCPolynomialArray,
+):
     # TYPING: barai::Array{Int32}
     # ACC = BKi*[(X^barai-1)*ACC]+ACC
     # temp = (X^barai-1)*ACC
@@ -77,9 +86,15 @@ def tfhe_MuxRotate_FFT(
  * @param bara An array of n coefficients between 0 and 2N-1
  * @param bk_params The parameters of bk
 """
-def tfhe_blindRotate_FFT(
-        accum: TLweSampleArray, bkFFT: TGswSampleFFTArray, bara, n: int, bk_params: TGswParams):
 
+
+def tfhe_blindRotate_FFT(
+    accum: TLweSampleArray,
+    bkFFT: TGswSampleFFTArray,
+    bara,
+    n: int,
+    bk_params: TGswParams,
+):
     # TYPING: bara::Array{Int32}
     temp = TLweSampleArray(bk_params.tlwe_params, accum.shape)
     temp2 = temp
@@ -91,19 +106,23 @@ def tfhe_blindRotate_FFT(
     tmpa = TLweSampleFFTArray(bk_params.tlwe_params, accum.shape)
     deca = IntPolynomialArray(bk_params.tlwe_params.N, accum.a.shape + (bk_params.l,))
     decaFFT = LagrangeHalfCPolynomialArray(
-        bk_params.tlwe_params.N, accum.shape + (bk_params.tlwe_params.k + 1, bk_params.l))
+        bk_params.tlwe_params.N,
+        accum.shape + (bk_params.tlwe_params.k + 1, bk_params.l),
+    )
 
     for i in range(n):
         # GPU: will have to be passed as a pair `bara`, `i`
-        barai = bara[:,i] # !!! assuming the ciphertext is 1D
+        barai = bara[:, i]  # !!! assuming the ciphertext is 1D
 
         # FIXME: We could pass the view bkFFT[i] here, but on the current Julia it's too slow
-        tfhe_MuxRotate_FFT(temp2, temp3, bkFFT, i, barai, bk_params, tmpa, deca, decaFFT)
+        tfhe_MuxRotate_FFT(
+            temp2, temp3, bkFFT, i, barai, bk_params, tmpa, deca, decaFFT
+        )
 
         temp2, temp3 = temp3, temp2
         accum_in_temp3 = not accum_in_temp3
 
-    if not accum_in_temp3: # temp3 != accum
+    if not accum_in_temp3:  # temp3 != accum
         tLweCopy(accum, temp3, bk_params.tlwe_params)
 
 
@@ -116,10 +135,17 @@ def tfhe_blindRotate_FFT(
  * @param bara An array of n coefficients between 0 and 2N-1
  * @param bk_params The parameters of bk
 """
-def tfhe_blindRotateAndExtract_FFT(
-        result: LweSampleArray,
-        v: TorusPolynomialArray, bk: TGswSampleFFTArray, barb, bara, n: int, bk_params: TGswParams):
 
+
+def tfhe_blindRotateAndExtract_FFT(
+    result: LweSampleArray,
+    v: TorusPolynomialArray,
+    bk: TGswSampleFFTArray,
+    barb,
+    bara,
+    n: int,
+    bk_params: TGswParams,
+):
     # TYPING: barb::Array{Int32},
     # TYPING: bara::Array{Int32}
 
@@ -152,9 +178,11 @@ def tfhe_blindRotateAndExtract_FFT(
  * @param mu The output message (if phase(x)>0)
  * @param x The input sample
 """
-def tfhe_bootstrap_woKS_FFT(
-        result: LweSampleArray, bk: LweBootstrappingKeyFFT, mu: Torus32, x: LweSampleArray):
 
+
+def tfhe_bootstrap_woKS_FFT(
+    result: LweSampleArray, bk: LweBootstrappingKeyFFT, mu: Torus32, x: LweSampleArray
+):
     bk_params = bk.bk_params
     accum_params = bk.accum_params
     in_params = bk.in_out_params
@@ -184,9 +212,11 @@ def tfhe_bootstrap_woKS_FFT(
  * @param mu The output message (if phase(x)>0)
  * @param x The input sample
 """
-def tfhe_bootstrap_FFT(
-        result: LweSampleArray, bk: LweBootstrappingKeyFFT, mu: Torus32, x: LweSampleArray):
 
+
+def tfhe_bootstrap_FFT(
+    result: LweSampleArray, bk: LweBootstrappingKeyFFT, mu: Torus32, x: LweSampleArray
+):
     u = LweSampleArray(bk.accum_params.extracted_lweparams, result.shape)
 
     tfhe_bootstrap_woKS_FFT(u, bk, mu, x)

@@ -1,5 +1,6 @@
-import numpy
 import time
+
+import numpy
 
 from tfhe import *
 
@@ -20,7 +21,6 @@ def reference_mux(bits1, bits2, bits3):
 
 
 def encrypt():
-
     rng = numpy.random.RandomState(123)
 
     secret_key, cloud_key = tfhe_key_pair(rng)
@@ -45,7 +45,6 @@ def encrypted_compare_bit_(cloud_key, result, a, b, lsb_carry, tmp):
 
 # this function compares two multibit words, and puts the max in result
 def encrypted_minimum_(cloud_key, result, a, b):
-
     nb_bits = result.shape[0]
 
     params = tfhe_parameters(cloud_key)
@@ -58,16 +57,14 @@ def encrypted_minimum_(cloud_key, result, a, b):
 
     # run the elementary comparator gate n times
     for i in range(nb_bits):
-        encrypted_compare_bit_(cloud_key, tmp1, a[i:i+1], b[i:i+1], tmp1, tmp2)
+        encrypted_compare_bit_(cloud_key, tmp1, a[i : i + 1], b[i : i + 1], tmp1, tmp2)
 
     # tmp1 is the result of the comparaison: 0 if a is larger, 1 if b is larger
     # select the max and copy it to the result
     tfhe_gate_MUX_(cloud_key, result, tmp1, b, a)
 
 
-
 def process(cloud_key, ciphertext1, ciphertext2):
-
     # if necessary, the params are inside the key
     params = tfhe_parameters(cloud_key)
 
