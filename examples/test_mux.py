@@ -1,8 +1,18 @@
+# pylint: disable=duplicate-code
+# pylint: disable=redefined-outer-name
+
 import time
 
 import numpy
 
-from tfhe import *
+from tfhe.boot_gates import tfhe_gate_MUX_
+from tfhe.keys import (
+    empty_ciphertext,
+    tfhe_decrypt,
+    tfhe_encrypt,
+    tfhe_key_pair,
+    tfhe_parameters,
+)
 
 
 def int_to_bitarray(x):
@@ -21,7 +31,7 @@ def reference_mux(bits1, bits2, bits3):
 
 
 def encrypt():
-    rng = numpy.random.RandomState(123)
+    rng = numpy.random.RandomState(123)  # pylint: disable=no-member
 
     print("Key generation:")
     t = time.time()

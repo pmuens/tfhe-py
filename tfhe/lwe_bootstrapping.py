@@ -1,7 +1,29 @@
-import numpy
-
-from .lwe import *
-from .tgsw import *
+from .lwe import LweKey, LweKeySwitchKey, LweSampleArray, lweKeySwitch
+from .numeric_functions import Torus32, modSwitchFromTorus32
+from .polynomials import (
+    IntPolynomialArray,
+    LagrangeHalfCPolynomialArray,
+    TorusPolynomialArray,
+    tp_mul_by_xai_,
+)
+from .tgsw import (
+    TGswKey,
+    TGswParams,
+    TGswSampleArray,
+    TGswSampleFFTArray,
+    tGswFFTExternMulToTLwe,
+    tGswSymEncryptInt,
+    tGswToFFTConvert,
+)
+from .tlwe import (
+    TLweSampleArray,
+    TLweSampleFFTArray,
+    tLweAddTo,
+    tLweCopy,
+    tLweExtractLweSample,
+    tLweMulByXaiMinusOne,
+    tLweNoiselessTrivial,
+)
 
 
 def lwe_bootstrapping_key(
@@ -44,7 +66,7 @@ class LweBootstrappingKeyFFT:
 
         # Bootstrapping Key FFT
         bkFFT = TGswSampleFFTArray(bk_params, (n,))
-        tGswToFFTConvert(bkFFT, bk, bk_params)
+        tGswToFFTConvert(bkFFT, bk)
 
         self.in_out_params = (
             in_out_params  # paramètre de l'input et de l'output. key: s
@@ -70,15 +92,16 @@ def tfhe_MuxRotate_FFT(
     # TYPING: barai::Array{Int32}
     # ACC = BKi*[(X^barai-1)*ACC]+ACC
     # temp = (X^barai-1)*ACC
-    tLweMulByXaiMinusOne(result, barai, accum, bk_params.tlwe_params)
+    tLweMulByXaiMinusOne(result, barai, accum)
 
     # temp *= BKi
     tGswFFTExternMulToTLwe(result, bki, bk_idx, bk_params, tmpa, deca, decaFFT)
 
     # ACC += temp
-    tLweAddTo(result, accum, bk_params.tlwe_params)
+    tLweAddTo(result, accum)
 
 
+# pylint: disable=pointless-string-statement
 """
  * multiply the accumulator by X^sum(bara_i.s_i)
  * @param accum the TLWE sample to multiply
@@ -86,6 +109,7 @@ def tfhe_MuxRotate_FFT(
  * @param bara An array of n coefficients between 0 and 2N-1
  * @param bk_params The parameters of bk
 """
+# pylint: enable=pointless-string-statement
 
 
 def tfhe_blindRotate_FFT(
@@ -102,7 +126,8 @@ def tfhe_blindRotate_FFT(
 
     accum_in_temp3 = True
 
-    # For use in tGswFFTExternMulToTLwe(), so that we don't have to allocate them `n` times
+    # For use in tGswFFTExternMulToTLwe(), so that we don't have to
+    #   allocate them `n` times
     tmpa = TLweSampleFFTArray(bk_params.tlwe_params, accum.shape)
     deca = IntPolynomialArray(bk_params.tlwe_params.N, accum.a.shape + (bk_params.l,))
     decaFFT = LagrangeHalfCPolynomialArray(
@@ -114,7 +139,8 @@ def tfhe_blindRotate_FFT(
         # GPU: will have to be passed as a pair `bara`, `i`
         barai = bara[:, i]  # !!! assuming the ciphertext is 1D
 
-        # FIXME: We could pass the view bkFFT[i] here, but on the current Julia it's too slow
+        # FIXME: We could pass the view bkFFT[i] here, but on the current # pylint: disable=fixme
+        #   Julia it's too slow
         tfhe_MuxRotate_FFT(
             temp2, temp3, bkFFT, i, barai, bk_params, tmpa, deca, decaFFT
         )
@@ -123,9 +149,10 @@ def tfhe_blindRotate_FFT(
         accum_in_temp3 = not accum_in_temp3
 
     if not accum_in_temp3:  # temp3 != accum
-        tLweCopy(accum, temp3, bk_params.tlwe_params)
+        tLweCopy(accum, temp3)
 
 
+# pylint: disable=pointless-string-statement
 """
  * result = LWE(v_p) where p=barb-sum(bara_i.s_i) mod 2N
  * @param result the output LWE sample
@@ -135,6 +162,7 @@ def tfhe_blindRotate_FFT(
  * @param bara An array of n coefficients between 0 and 2N-1
  * @param bk_params The parameters of bk
 """
+# pylint: enable=pointless-string-statement
 
 
 def tfhe_blindRotateAndExtract_FFT(
@@ -162,7 +190,7 @@ def tfhe_blindRotateAndExtract_FFT(
     # GPU: array operations or a custom kernel
     tp_mul_by_xai_(testvectbis, 2 * N - barb, v)
 
-    tLweNoiselessTrivial(acc, testvectbis, accum_params)
+    tLweNoiselessTrivial(acc, testvectbis)
 
     # Blind rotation
     tfhe_blindRotate_FFT(acc, bk, bara, n, bk_params)
@@ -171,6 +199,7 @@ def tfhe_blindRotateAndExtract_FFT(
     tLweExtractLweSample(result, acc, extract_params, accum_params)
 
 
+# pylint: disable=pointless-string-statement
 """
  * result = LWE(mu) iff phase(x)>0, LWE(-mu) iff phase(x)<0
  * @param result The resulting LweSample
@@ -178,6 +207,7 @@ def tfhe_blindRotateAndExtract_FFT(
  * @param mu The output message (if phase(x)>0)
  * @param x The input sample
 """
+# pylint: enable=pointless-string-statement
 
 
 def tfhe_bootstrap_woKS_FFT(
@@ -197,7 +227,7 @@ def tfhe_bootstrap_woKS_FFT(
     bara = modSwitchFromTorus32(x.a, 2 * N)
 
     # the initial testvec = [mu,mu,mu,...,mu]
-    # TODO: use an appropriate method
+    # TODO: use an appropriate method # pylint: disable=fixme
     # GPU: array operations or a custom kernel
     testvect.coefsT.fill(mu)
 
@@ -205,6 +235,7 @@ def tfhe_bootstrap_woKS_FFT(
     tfhe_blindRotateAndExtract_FFT(result, testvect, bk.bkFFT, barb, bara, n, bk_params)
 
 
+# pylint: disable=pointless-string-statement
 """
  * result = LWE(mu) iff phase(x)>0, LWE(-mu) iff phase(x)<0
  * @param result The resulting LweSample
@@ -212,6 +243,7 @@ def tfhe_bootstrap_woKS_FFT(
  * @param mu The output message (if phase(x)>0)
  * @param x The input sample
 """
+# pylint: enable=pointless-string-statement
 
 
 def tfhe_bootstrap_FFT(

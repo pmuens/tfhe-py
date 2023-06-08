@@ -1,14 +1,30 @@
-from .keys import *
+import numpy
+
+from .keys import LweSampleArray, TFHECloudKey, modSwitchToTorus32
+from .lwe import (
+    lweAddMulTo,
+    lweAddTo,
+    lweCopy,
+    lweKeySwitch,
+    lweNegate,
+    lweNoiselessTrivial,
+    lweSubMulTo,
+    lweSubTo,
+)
+from .lwe_bootstrapping import tfhe_bootstrap_FFT, tfhe_bootstrap_woKS_FFT
+from .polynomials import Torus32
 
 # *#*****************************************
 # zones on the torus -> to see
 # *#*****************************************
 
+# pylint: disable=pointless-string-statement
 """
  * Homomorphic bootstrapped NAND gate
  * Takes in input 2 LWE samples (with message space [-1/8,1/8], noise<1/16)
  * Outputs a LWE bootstrapped sample (with message space [-1/8,1/8], noise<1/16)
 """
+# pylint: enable=pointless-string-statement
 
 
 def tfhe_gate_NAND_(
@@ -21,20 +37,22 @@ def tfhe_gate_NAND_(
 
     # compute: (0,1/8) - ca - cb
     NandConst = modSwitchToTorus32(1, 8)
-    lweNoiselessTrivial(temp_result, NandConst, in_out_params)
-    lweSubTo(temp_result, ca, in_out_params)
-    lweSubTo(temp_result, cb, in_out_params)
+    lweNoiselessTrivial(temp_result, NandConst)
+    lweSubTo(temp_result, ca)
+    lweSubTo(temp_result, cb)
 
     # if the phase is positive, the result is 1/8
     # if the phase is positive, else the result is -1/8
     tfhe_bootstrap_FFT(result, bk.bkFFT, MU, temp_result)
 
 
+# pylint: disable=pointless-string-statement
 """
  * Homomorphic bootstrapped OR gate
  * Takes in input 2 LWE samples (with message space [-1/8,1/8], noise<1/16)
  * Outputs a LWE bootstrapped sample (with message space [-1/8,1/8], noise<1/16)
 """
+# pylint: enable=pointless-string-statement
 
 
 def tfhe_gate_OR_(
@@ -47,20 +65,22 @@ def tfhe_gate_OR_(
 
     # compute: (0,1/8) + ca + cb
     OrConst = modSwitchToTorus32(1, 8)
-    lweNoiselessTrivial(temp_result, OrConst, in_out_params)
-    lweAddTo(temp_result, ca, in_out_params)
-    lweAddTo(temp_result, cb, in_out_params)
+    lweNoiselessTrivial(temp_result, OrConst)
+    lweAddTo(temp_result, ca)
+    lweAddTo(temp_result, cb)
 
     # if the phase is positive, the result is 1/8
     # if the phase is positive, else the result is -1/8
     tfhe_bootstrap_FFT(result, bk.bkFFT, MU, temp_result)
 
 
+# pylint: disable=pointless-string-statement
 """
  * Homomorphic bootstrapped AND gate
  * Takes in input 2 LWE samples (with message space [-1/8,1/8], noise<1/16)
  * Outputs a LWE bootstrapped sample (with message space [-1/8,1/8], noise<1/16)
 """
+# pylint: enable=pointless-string-statement
 
 
 def tfhe_gate_AND_(
@@ -73,20 +93,22 @@ def tfhe_gate_AND_(
 
     # compute: (0,-1/8) + ca + cb
     AndConst = modSwitchToTorus32(-1, 8)
-    lweNoiselessTrivial(temp_result, AndConst, in_out_params)
-    lweAddTo(temp_result, ca, in_out_params)
-    lweAddTo(temp_result, cb, in_out_params)
+    lweNoiselessTrivial(temp_result, AndConst)
+    lweAddTo(temp_result, ca)
+    lweAddTo(temp_result, cb)
 
     # if the phase is positive, the result is 1/8
     # if the phase is positive, else the result is -1/8
     tfhe_bootstrap_FFT(result, bk.bkFFT, MU, temp_result)
 
 
+# pylint: disable=pointless-string-statement
 """
  * Homomorphic bootstrapped XOR gate
  * Takes in input 2 LWE samples (with message space [-1/8,1/8], noise<1/16)
  * Outputs a LWE bootstrapped sample (with message space [-1/8,1/8], noise<1/16)
 """
+# pylint: enable=pointless-string-statement
 
 
 def tfhe_gate_XOR_(
@@ -99,20 +121,22 @@ def tfhe_gate_XOR_(
 
     # compute: (0,1/4) + 2*(ca + cb)
     XorConst = modSwitchToTorus32(1, 4)
-    lweNoiselessTrivial(temp_result, XorConst, in_out_params)
-    lweAddMulTo(temp_result, 2, ca, in_out_params)
-    lweAddMulTo(temp_result, 2, cb, in_out_params)
+    lweNoiselessTrivial(temp_result, XorConst)
+    lweAddMulTo(temp_result, 2, ca)
+    lweAddMulTo(temp_result, 2, cb)
 
     # if the phase is positive, the result is 1/8
     # if the phase is positive, else the result is -1/8
     tfhe_bootstrap_FFT(result, bk.bkFFT, MU, temp_result)
 
 
+# pylint: disable=pointless-string-statement
 """
  * Homomorphic bootstrapped XNOR gate
  * Takes in input 2 LWE samples (with message space [-1/8,1/8], noise<1/16)
  * Outputs a LWE bootstrapped sample (with message space [-1/8,1/8], noise<1/16)
 """
+# pylint: enable=pointless-string-statement
 
 
 def tfhe_gate_XNOR_(
@@ -125,61 +149,66 @@ def tfhe_gate_XNOR_(
 
     # compute: (0,-1/4) + 2*(-ca-cb)
     XnorConst = modSwitchToTorus32(-1, 4)
-    lweNoiselessTrivial(temp_result, XnorConst, in_out_params)
-    lweSubMulTo(temp_result, 2, ca, in_out_params)
-    lweSubMulTo(temp_result, 2, cb, in_out_params)
+    lweNoiselessTrivial(temp_result, XnorConst)
+    lweSubMulTo(temp_result, 2, ca)
+    lweSubMulTo(temp_result, 2, cb)
 
     # if the phase is positive, the result is 1/8
     # if the phase is positive, else the result is -1/8
     tfhe_bootstrap_FFT(result, bk.bkFFT, MU, temp_result)
 
 
+# pylint: disable=pointless-string-statement
 """
  * Homomorphic bootstrapped NOT gate (doesn't need to be bootstrapped)
  * Takes in input 1 LWE samples (with message space [-1/8,1/8], noise<1/16)
  * Outputs a LWE sample (with message space [-1/8,1/8], noise<1/16)
 """
+# pylint: enable=pointless-string-statement
 
 
-def tfhe_gate_NOT_(bk: TFHECloudKey, result: LweSampleArray, ca: LweSampleArray):
-    in_out_params = bk.params.in_out_params
-    lweNegate(result, ca, in_out_params)
+def tfhe_gate_NOT_(result: LweSampleArray, ca: LweSampleArray):
+    lweNegate(result, ca)
 
 
+# pylint: disable=pointless-string-statement
 """
  * Homomorphic bootstrapped COPY gate (doesn't need to be bootstrapped)
  * Takes in input 1 LWE samples (with message space [-1/8,1/8], noise<1/16)
  * Outputs a LWE sample (with message space [-1/8,1/8], noise<1/16)
 """
+# pylint: enable=pointless-string-statement
 
 
-def tfhe_gate_COPY_(bk: TFHECloudKey, result: LweSampleArray, ca: LweSampleArray):
-    in_out_params = bk.params.in_out_params
-    lweCopy(result, ca, in_out_params)
+def tfhe_gate_COPY_(result: LweSampleArray, ca: LweSampleArray):
+    lweCopy(result, ca)
 
 
+# pylint: disable=pointless-string-statement
 """
  * Homomorphic Trivial Constant gate (doesn't need to be bootstrapped)
  * Takes a boolean value)
  * Outputs a LWE sample (with message space [-1/8,1/8], noise<1/16)
 """
+# pylint: enable=pointless-string-statement
 
 
-def tfhe_gate_CONSTANT_(bk: TFHECloudKey, result: LweSampleArray, vals):
-    in_out_params = bk.params.in_out_params
+def tfhe_gate_CONSTANT_(result: LweSampleArray, vals):
     MU = modSwitchToTorus32(1, 8)
     if isinstance(vals, numpy.ndarray):
         mus = numpy.array([MU if x else -MU for x in vals])
     else:
         mus = numpy.ones(result.shape, Torus32) * (MU if vals else -MU)
-    lweNoiselessTrivial(result, mus, in_out_params)
+    lweNoiselessTrivial(result, mus)
 
 
+# pylint: disable=pointless-string-statement
 """
  * Homomorphic bootstrapped NOR gate
  * Takes in input 2 LWE samples (with message space [-1/8,1/8], noise<1/16)
  * Outputs a LWE bootstrapped sample (with message space [-1/8,1/8], noise<1/16)
 """
+# pylint: enable=pointless-string-statement
 
 
 def tfhe_gate_NOR_(
@@ -192,20 +221,22 @@ def tfhe_gate_NOR_(
 
     # compute: (0,-1/8) - ca - cb
     NorConst = modSwitchToTorus32(-1, 8)
-    lweNoiselessTrivial(temp_result, NorConst, in_out_params)
-    lweSubTo(temp_result, ca, in_out_params)
-    lweSubTo(temp_result, cb, in_out_params)
+    lweNoiselessTrivial(temp_result, NorConst)
+    lweSubTo(temp_result, ca)
+    lweSubTo(temp_result, cb)
 
     # if the phase is positive, the result is 1/8
     # if the phase is positive, else the result is -1/8
     tfhe_bootstrap_FFT(result, bk.bkFFT, MU, temp_result)
 
 
+# pylint: disable=pointless-string-statement
 """
  * Homomorphic bootstrapped AndNY Gate: not(a) and b
  * Takes in input 2 LWE samples (with message space [-1/8,1/8], noise<1/16)
  * Outputs a LWE bootstrapped sample (with message space [-1/8,1/8], noise<1/16)
 """
+# pylint: enable=pointless-string-statement
 
 
 def tfhe_gate_ANDNY_(
@@ -218,20 +249,22 @@ def tfhe_gate_ANDNY_(
 
     # compute: (0,-1/8) - ca + cb
     AndNYConst = modSwitchToTorus32(-1, 8)
-    lweNoiselessTrivial(temp_result, AndNYConst, in_out_params)
-    lweSubTo(temp_result, ca, in_out_params)
-    lweAddTo(temp_result, cb, in_out_params)
+    lweNoiselessTrivial(temp_result, AndNYConst)
+    lweSubTo(temp_result, ca)
+    lweAddTo(temp_result, cb)
 
     # if the phase is positive, the result is 1/8
     # if the phase is positive, else the result is -1/8
     tfhe_bootstrap_FFT(result, bk.bkFFT, MU, temp_result)
 
 
+# pylint: disable=pointless-string-statement
 """
  * Homomorphic bootstrapped AndYN Gate: a and not(b)
  * Takes in input 2 LWE samples (with message space [-1/8,1/8], noise<1/16)
  * Outputs a LWE bootstrapped sample (with message space [-1/8,1/8], noise<1/16)
 """
+# pylint: enable=pointless-string-statement
 
 
 def tfhe_gate_ANDYN_(
@@ -244,20 +277,22 @@ def tfhe_gate_ANDYN_(
 
     # compute: (0,-1/8) + ca - cb
     AndYNConst = modSwitchToTorus32(-1, 8)
-    lweNoiselessTrivial(temp_result, AndYNConst, in_out_params)
-    lweAddTo(temp_result, ca, in_out_params)
-    lweSubTo(temp_result, cb, in_out_params)
+    lweNoiselessTrivial(temp_result, AndYNConst)
+    lweAddTo(temp_result, ca)
+    lweSubTo(temp_result, cb)
 
     # if the phase is positive, the result is 1/8
     # if the phase is positive, else the result is -1/8
     tfhe_bootstrap_FFT(result, bk.bkFFT, MU, temp_result)
 
 
+# pylint: disable=pointless-string-statement
 """
  * Homomorphic bootstrapped OrNY Gate: not(a) or b
  * Takes in input 2 LWE samples (with message space [-1/8,1/8], noise<1/16)
  * Outputs a LWE bootstrapped sample (with message space [-1/8,1/8], noise<1/16)
 """
+# pylint: enable=pointless-string-statement
 
 
 def tfhe_gate_ORNY_(
@@ -270,20 +305,22 @@ def tfhe_gate_ORNY_(
 
     # compute: (0,1/8) - ca + cb
     OrNYConst = modSwitchToTorus32(1, 8)
-    lweNoiselessTrivial(temp_result, OrNYConst, in_out_params)
-    lweSubTo(temp_result, ca, in_out_params)
-    lweAddTo(temp_result, cb, in_out_params)
+    lweNoiselessTrivial(temp_result, OrNYConst)
+    lweSubTo(temp_result, ca)
+    lweAddTo(temp_result, cb)
 
     # if the phase is positive, the result is 1/8
     # if the phase is positive, else the result is -1/8
     tfhe_bootstrap_FFT(result, bk.bkFFT, MU, temp_result)
 
 
+# pylint: disable=pointless-string-statement
 """
  * Homomorphic bootstrapped OrYN Gate: a or not(b)
  * Takes in input 2 LWE samples (with message space [-1/8,1/8], noise<1/16)
  * Outputs a LWE bootstrapped sample (with message space [-1/8,1/8], noise<1/16)
 """
+# pylint: enable=pointless-string-statement
 
 
 def tfhe_gate_ORYN_(
@@ -296,20 +333,22 @@ def tfhe_gate_ORYN_(
 
     # compute: (0,1/8) + ca - cb
     OrYNConst = modSwitchToTorus32(1, 8)
-    lweNoiselessTrivial(temp_result, OrYNConst, in_out_params)
-    lweAddTo(temp_result, ca, in_out_params)
-    lweSubTo(temp_result, cb, in_out_params)
+    lweNoiselessTrivial(temp_result, OrYNConst)
+    lweAddTo(temp_result, ca)
+    lweSubTo(temp_result, cb)
 
     # if the phase is positive, the result is 1/8
     # if the phase is positive, else the result is -1/8
     tfhe_bootstrap_FFT(result, bk.bkFFT, MU, temp_result)
 
 
+# pylint: disable=pointless-string-statement
 """
  * Homomorphic bootstrapped Mux(a,b,c) = a?b:c = a*b + not(a)*c
  * Takes in input 3 LWE samples (with message space [-1/8,1/8], noise<1/16)
  * Outputs a LWE bootstrapped sample (with message space [-1/8,1/8], noise<1/16)
 """
+# pylint: enable=pointless-string-statement
 
 
 def tfhe_gate_MUX_(
@@ -330,24 +369,24 @@ def tfhe_gate_MUX_(
 
     # compute "AND(a,b)": (0,-1/8) + a + b
     AndConst = modSwitchToTorus32(-1, 8)
-    lweNoiselessTrivial(temp_result, AndConst, in_out_params)
-    lweAddTo(temp_result, a, in_out_params)
-    lweAddTo(temp_result, b, in_out_params)
+    lweNoiselessTrivial(temp_result, AndConst)
+    lweAddTo(temp_result, a)
+    lweAddTo(temp_result, b)
     # Bootstrap without KeySwitch
     tfhe_bootstrap_woKS_FFT(u1, bk.bkFFT, MU, temp_result)
 
     # compute "AND(not(a),c)": (0,-1/8) - a + c
-    lweNoiselessTrivial(temp_result, AndConst, in_out_params)
-    lweSubTo(temp_result, a, in_out_params)
-    lweAddTo(temp_result, c, in_out_params)
+    lweNoiselessTrivial(temp_result, AndConst)
+    lweSubTo(temp_result, a)
+    lweAddTo(temp_result, c)
     # Bootstrap without KeySwitch
     tfhe_bootstrap_woKS_FFT(u2, bk.bkFFT, MU, temp_result)
 
     # Add u1=u1+u2
     MuxConst = modSwitchToTorus32(1, 8)
-    lweNoiselessTrivial(temp_result1, MuxConst, extracted_params)
-    lweAddTo(temp_result1, u1, extracted_params)
-    lweAddTo(temp_result1, u2, extracted_params)
+    lweNoiselessTrivial(temp_result1, MuxConst)
+    lweAddTo(temp_result1, u1)
+    lweAddTo(temp_result1, u2)
 
     # Key switching
     lweKeySwitch(result, bk.bkFFT.ks, temp_result1)

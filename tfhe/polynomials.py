@@ -1,6 +1,6 @@
 import numpy
 
-from .numeric_functions import *
+from .numeric_functions import Torus32, float_to_int32
 
 
 # This structure represents an integer polynomial modulo X^N+1
@@ -36,13 +36,12 @@ class LagrangeHalfCPolynomialArray:
 
 
 def _coefs(p):
-    # TODO: different field names help with debugging, remove later
-    if type(p) == IntPolynomialArray:
+    # TODO: different field names help with debugging, remove later # pylint: disable=fixme
+    if isinstance(p, IntPolynomialArray):
         return p.coefs
-    elif type(p) == TorusPolynomialArray:
+    if isinstance(p, TorusPolynomialArray):
         return p.coefsT
-    else:
-        return p.coefsC
+    return p.coefsC
 
 
 def flat_coefs(p):
@@ -60,7 +59,7 @@ def prepare_ifft_input_(rev_in, a, coeff, N):
 
 
 def prepare_ifft_output_(res, rev_out, N):
-    # FIXME: when Julia is smart enough, can be replaced by:
+    # FIXME: when Julia is smart enough, can be replaced by: # pylint: disable=fixme
     res[:, : N // 2] = rev_out[:, 1 : N + 1 : 2]
 
 

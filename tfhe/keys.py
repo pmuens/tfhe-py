@@ -1,9 +1,10 @@
 import numpy
 
-from .lwe import *
-from .lwe_bootstrapping import *
-from .tgsw import *
-from .tlwe import *
+from .lwe import LweKey, LweParams, LweSampleArray, lwePhase, lweSymEncrypt
+from .lwe_bootstrapping import LweBootstrappingKeyFFT
+from .numeric_functions import modSwitchToTorus32
+from .tgsw import TGswKey, TGswParams
+from .tlwe import TLweParams
 
 
 class TFHEParameters:
@@ -13,7 +14,8 @@ class TFHEParameters:
 
         # the parameters are only implemented for about 128bit of security!
 
-        mul_by_sqrt_two_over_pi = lambda x: x * (2 / numpy.pi) ** 0.5
+        def mul_by_sqrt_two_over_pi(x):
+            return x * (2 / numpy.pi) ** 0.5
 
         N = 1024
         k = 1
@@ -74,7 +76,9 @@ def tfhe_encrypt(rng, key: TFHESecretKey, message):
     result = empty_ciphertext(key.params, message.shape)
     _1s8 = modSwitchToTorus32(1, 8)
     mus = numpy.array([_1s8 if bit else -_1s8 for bit in message])
-    alpha = key.params.in_out_params.alpha_min  # TODO: specify noise
+    alpha = (
+        key.params.in_out_params.alpha_min
+    )  # TODO: specify noise # pylint: disable=fixme
     lweSymEncrypt(rng, result, mus, alpha, key.lwe_key)
     return result
 

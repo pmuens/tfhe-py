@@ -4,6 +4,10 @@ disable =
   C0115, # missing-class-docstring
   C0116, # missing-function-docstring
   C0103, # invalid-name
+  R0902, # too-many-instance-attributes
+  R0903, # too-few-public-methods
+  R0913, # too-many-arguments
+  R0914, # too-many-locals
 
 [format]
 max-line-length = 88

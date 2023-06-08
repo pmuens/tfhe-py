@@ -1,6 +1,13 @@
 import numpy
 
-from .numeric_functions import *
+from .numeric_functions import (
+    Torus32,
+    dtot32,
+    rand_gaussian_float,
+    rand_gaussian_torus32,
+    rand_uniform_int32,
+    rand_uniform_torus32,
+)
 
 
 class LweParams:
@@ -30,7 +37,9 @@ class LweKey:
         assert params.n == k * N
 
         # GPU: array operation
-        key = tlwe_key.key.coefs.flatten()  # TODO: use an approprtiate method
+        key = (
+            tlwe_key.key.coefs.flatten()
+        )  # TODO: use an approprtiate method # pylint: disable=fixme
 
         return cls(params, key)
 
@@ -85,21 +94,21 @@ def lwePhase(sample: LweSampleArray, key: LweKey):
 
 
 # result = sample
-def lweCopy(result: LweSampleArray, sample: LweSampleArray, params: LweParams):
+def lweCopy(result: LweSampleArray, sample: LweSampleArray):
     result.a = sample.a.copy()
     result.b = sample.b.copy()
     result.current_variances = sample.current_variances.copy()
 
 
 # result = -sample
-def lweNegate(result: LweSampleArray, sample: LweSampleArray, params: LweParams):
+def lweNegate(result: LweSampleArray, sample: LweSampleArray):
     result.a = -sample.a
     result.b = -sample.b
     result.current_variances = sample.current_variances.copy()
 
 
 # result = (0,mu)
-def lweNoiselessTrivial(result: LweSampleArray, mus, params: LweParams):
+def lweNoiselessTrivial(result: LweSampleArray, mus):
     # TYPING: mus: Union{Array{Torus32}, Torus32}
     # GPU: array operations
     result.a.fill(0)
@@ -108,7 +117,7 @@ def lweNoiselessTrivial(result: LweSampleArray, mus, params: LweParams):
 
 
 # result = result + sample
-def lweAddTo(result: LweSampleArray, sample: LweSampleArray, params: LweParams):
+def lweAddTo(result: LweSampleArray, sample: LweSampleArray):
     # GPU: array operations or a custom kernel
     result.a += sample.a
     result.b += sample.b
@@ -116,25 +125,21 @@ def lweAddTo(result: LweSampleArray, sample: LweSampleArray, params: LweParams):
 
 
 # result = result - sample
-def lweSubTo(result: LweSampleArray, sample: LweSampleArray, params: LweParams):
+def lweSubTo(result: LweSampleArray, sample: LweSampleArray):
     result.a -= sample.a
     result.b -= sample.b
     result.current_variances += sample.current_variances
 
 
 # result = result + p.sample
-def lweAddMulTo(
-    result: LweSampleArray, p: numpy.int32, sample: LweSampleArray, params: LweParams
-):
+def lweAddMulTo(result: LweSampleArray, p: numpy.int32, sample: LweSampleArray):
     result.a += p * sample.a
     result.b += p * sample.b
     result.current_variances += p**2 * sample.current_variances
 
 
 # result = result - p.sample
-def lweSubMulTo(
-    result: LweSampleArray, p: numpy.int32, sample: LweSampleArray, params: LweParams
-):
+def lweSubMulTo(result: LweSampleArray, p: numpy.int32, sample: LweSampleArray):
     result.a -= p * sample.a
     result.b -= p * sample.b
     result.current_variances += p**2 * sample.current_variances
@@ -178,7 +183,8 @@ class LweKeySwitchKey:
     def __init__(
         self, rng, n: int, t: int, basebit: int, in_key: LweKey, out_key: LweKey
     ):
-        # GPU: will be possibly made into a kernel including lweSymEncryptWithExternalNoise()
+        # GPU: will be possibly made into a kernel including
+        #   lweSymEncryptWithExternalNoise()
 
         out_params = out_key.params
 
@@ -195,7 +201,7 @@ class LweKeySwitchKey:
 
         # generate the ks
 
-        # mess::Torus32 = (in_key.key[i] * Int32(h - 1)) * Int32(1 << (32 - j * basebit))
+        # mess::Torus32 = (in_key.key[i] * Int32(h - 1)) * Int32(1 << (32 - j * basebit)) # pylint: disable=line-too-long
         hs = numpy.arange(2, base + 1)
         js = numpy.arange(1, t + 1)
 
@@ -214,9 +220,11 @@ class LweKeySwitchKey:
         self.base = base  # decomposition base: a power of 2
         self.out_params = out_params  # params of the output key s
         self.ks = ks  # the keyswitch elements: a n.l.base matrix
-        # de taille n pointe vers ks1 un tableau dont les cases sont espaceés de ell positions
+        # de taille n pointe vers ks1 un tableau dont les cases sont espaceés
+        #   de ell positions
 
 
+# pylint: disable=pointless-string-statement
 """
  * translates the message of the result sample by -sum(a[i].s[i]) where s is the secret
  * embedded in ks.
@@ -229,12 +237,12 @@ class LweKeySwitchKey:
  * @param t The precision of the keyswitch (technically, 1/2.base^t)
  * @param basebit Log_2 of base
 """
+# pylint: enable=pointless-string-statement
 
 
 def lweKeySwitchTranslate_fromArray(
     result: LweSampleArray,
     ks: LweSampleArray,
-    params: LweParams,
     ai,
     n: int,
     t: int,
@@ -257,18 +265,18 @@ def lweKeySwitchTranslate_fromArray(
                 x = aijs[i, l, j] - 1
                 if x != 0:
                     result.a[i, :] -= ks.a[l, j, x, :]
-                    # FIXME: numpy detects overflow there, and gives a warning,
-                    # but it's normal finite size integer arithmetic, and works as intended
+                    # FIXME: numpy detects overflow there, and gives a warning, # pylint: disable=fixme
+                    # but it's normal finite size integer arithmetic, and works as
+                    #   intended
                     result.b[i] -= ks.b[l, j, x]
                     result.current_variances[i] += ks.current_variances[l, j, x]
 
 
 # sample=(a',b')
 def lweKeySwitch(result: LweSampleArray, ks: LweKeySwitchKey, sample: LweSampleArray):
-    params = ks.out_params
     n = ks.n
     basebit = ks.basebit
     t = ks.t
 
-    lweNoiselessTrivial(result, sample.b, params)
-    lweKeySwitchTranslate_fromArray(result, ks.ks, params, sample.a, n, t, basebit)
+    lweNoiselessTrivial(result, sample.b)
+    lweKeySwitchTranslate_fromArray(result, ks.ks, sample.a, n, t, basebit)

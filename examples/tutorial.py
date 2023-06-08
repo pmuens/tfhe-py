@@ -1,8 +1,16 @@
-import time
+# pylint: disable=duplicate-code
+# pylint: disable=redefined-outer-name
 
 import numpy
 
-from tfhe import *
+from tfhe.boot_gates import tfhe_gate_CONSTANT_, tfhe_gate_MUX_, tfhe_gate_XNOR_
+from tfhe.keys import (
+    empty_ciphertext,
+    tfhe_decrypt,
+    tfhe_encrypt,
+    tfhe_key_pair,
+    tfhe_parameters,
+)
 
 
 def int_to_bitarray(x):
@@ -21,7 +29,7 @@ def reference_mux(bits1, bits2, bits3):
 
 
 def encrypt():
-    rng = numpy.random.RandomState(123)
+    rng = numpy.random.RandomState(123)  # pylint: disable=no-member
 
     secret_key, cloud_key = tfhe_key_pair(rng)
 
@@ -53,7 +61,7 @@ def encrypted_minimum_(cloud_key, result, a, b):
     tmp2 = empty_ciphertext(params, (1,))
 
     # initialize the carry to 0
-    tfhe_gate_CONSTANT_(cloud_key, tmp1, False)
+    tfhe_gate_CONSTANT_(tmp1, False)
 
     # run the elementary comparator gate n times
     for i in range(nb_bits):

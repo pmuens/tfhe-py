@@ -1,6 +1,22 @@
 import numpy
 
-from .tlwe import *
+from .numeric_functions import Torus32, int64_to_int32
+from .polynomials import (
+    IntPolynomialArray,
+    LagrangeHalfCPolynomialArray,
+    TorusPolynomialArray,
+)
+from .tlwe import (
+    TLweKey,
+    TLweParams,
+    TLweSampleArray,
+    TLweSampleFFTArray,
+    ip_ifft_,
+    tLweFFTClear,
+    tLweFromFFTConvert,
+    tLweSymEncryptZero,
+    tLweToFFTConvert,
+)
 
 
 class TGswParams:
@@ -25,7 +41,7 @@ class TGswParams:
         self.tlwe_params = tlwe_params  # Params of each row
         self.kpl = (tlwe_params.k + 1) * l  # number of rows = (k+1)*l
         self.h = h  # powers of Bgbit
-        self.offset = offset  # offset = Bg/2 * (2^(32-Bgbit) + 2^(32-2*Bgbit) + ... + 2^(32-l*Bgbit))
+        self.offset = offset  # offset = Bg/2 * (2^(32-Bgbit) + 2^(32-2*Bgbit) + ... + 2^(32-l*Bgbit)) # pylint: disable=line-too-long
 
 
 class TGswKey:
@@ -66,8 +82,8 @@ def tGswAddMuIntH(result: TGswSampleArray, messages, params: TGswParams):
     # (N, k + 1 [from TLweSample], l, k + 1 [from TGswSample], n)
     # messages: (n,)
     # h: (l,)
-    # TODO: use an appropriate method
-    # TODO: not sure if it's possible to fully vectorize it
+    # TODO: use an appropriate method # pylint: disable=fixme
+    # TODO: not sure if it's possible to fully vectorize it # pylint: disable=fixme
     for bloc in range(k + 1):
         result.samples.a.coefsT[:, bloc, :, bloc, 0] += messages.reshape(
             messages.size, 1
@@ -96,14 +112,14 @@ def tGswTorus32PolynomialDecompH(
 
     N = params.tlwe_params.N
     l = params.l
-    k = params.tlwe_params.k
     Bgbit = params.Bgbit
 
     maskMod = params.maskMod
     halfBg = params.halfBg
     offset = params.offset
 
-    decal = lambda p: 32 - p * Bgbit
+    def decal(p):
+        return 32 - p * Bgbit
 
     ps = numpy.arange(1, l + 1).reshape(1, 1, l, 1)
     sample_coefs = sample.coefsT.reshape(sample.shape + (1, N))
@@ -116,10 +132,8 @@ def tGswTorus32PolynomialDecompH(
 
 # For all the kpl TLWE samples composing the TGSW sample
 # It computes the inverse FFT of the coefficients of the TLWE sample
-def tGswToFFTConvert(
-    result: TGswSampleFFTArray, source: TGswSampleArray, params: TGswParams
-):
-    tLweToFFTConvert(result.samples, source.samples, params.tlwe_params)
+def tGswToFFTConvert(result: TGswSampleFFTArray, source: TGswSampleArray):
+    tLweToFFTConvert(result.samples, source.samples)
 
 
 def tLweFFTAddMulRTo(res, a, b, bk_idx):
@@ -144,17 +158,11 @@ def tGswFFTExternMulToTLwe(
     deca: IntPolynomialArray,
     decaFFT: LagrangeHalfCPolynomialArray,
 ):
-    tlwe_params = params.tlwe_params
-    k = tlwe_params.k
-    l = params.l
-    kpl = params.kpl
-    N = tlwe_params.N
-
     tGswTorus32PolynomialDecompH(deca, accum.a, params)
 
     ip_ifft_(decaFFT, deca)
 
-    tLweFFTClear(tmpa, tlwe_params)
+    tLweFFTClear(tmpa)
 
     res = tmpa.a.coefsC
     a = decaFFT.coefsC
@@ -162,4 +170,4 @@ def tGswFFTExternMulToTLwe(
 
     tLweFFTAddMulRTo(res, a, b, bk_idx)
 
-    tLweFromFFTConvert(accum, tmpa, tlwe_params)
+    tLweFromFFTConvert(accum, tmpa)
