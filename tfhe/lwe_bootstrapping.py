@@ -139,7 +139,7 @@ def tfhe_blindRotate_FFT(
         # GPU: will have to be passed as a pair `bara`, `i`
         barai = bara[:, i]  # !!! assuming the ciphertext is 1D
 
-        # FIXME: We could pass the view bkFFT[i] here, but on the current # pylint: disable=fixme
+        # FIXME: We could pass the view bkFFT[i] here, but on the current # pylint: disable=fixme # noqa: E501
         #   Julia it's too slow
         tfhe_MuxRotate_FFT(
             temp2, temp3, bkFFT, i, barai, bk_params, tmpa, deca, decaFFT

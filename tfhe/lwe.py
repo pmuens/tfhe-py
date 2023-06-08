@@ -201,7 +201,7 @@ class LweKeySwitchKey:
 
         # generate the ks
 
-        # mess::Torus32 = (in_key.key[i] * Int32(h - 1)) * Int32(1 << (32 - j * basebit)) # pylint: disable=line-too-long
+        # mess::Torus32 = (in_key.key[i] * Int32(h - 1)) * Int32(1 << (32 - j * basebit)) # pylint: disable=line-too-long # noqa: E501
         hs = numpy.arange(2, base + 1)
         js = numpy.arange(1, t + 1)
 
@@ -260,14 +260,16 @@ def lweKeySwitchTranslate_fromArray(
     aijs = (((ai + prec_offset) >> (32 - js * basebit)) & mask) + 1
 
     for i in range(result.shape[0]):
-        for l in range(n):
+        for l in range(n):  # noqa: E741
             for j in range(t):
                 x = aijs[i, l, j] - 1
                 if x != 0:
                     result.a[i, :] -= ks.a[l, j, x, :]
-                    # FIXME: numpy detects overflow there, and gives a warning, # pylint: disable=fixme
-                    # but it's normal finite size integer arithmetic, and works as
-                    #   intended
+                    # FIXME: numpy detects overflow # pylint: disable=fixme
+                    #   there, and gives a warning,
+                    #   but it's normal finite size
+                    #   integer arithmetic, and works
+                    #   as intended
                     result.b[i] -= ks.b[l, j, x]
                     result.current_variances[i] += ks.current_variances[l, j, x]
 

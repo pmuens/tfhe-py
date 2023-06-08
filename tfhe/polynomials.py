@@ -36,7 +36,7 @@ class LagrangeHalfCPolynomialArray:
 
 
 def _coefs(p):
-    # TODO: different field names help with debugging, remove later # pylint: disable=fixme
+    # TODO: different field names help with debugging, remove later # pylint: disable=fixme # noqa: E501
     if isinstance(p, IntPolynomialArray):
         return p.coefs
     if isinstance(p, TorusPolynomialArray):

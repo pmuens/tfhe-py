@@ -8,9 +8,10 @@ def rand_uniform_int32(rng, shape):
 
 
 def rand_uniform_torus32(rng, shape):
-    # TODO: if dims == () (it happens), the return value is not an array -> type # pylint: disable=fixme
-    #       instability also, there's probably instability for arrays of different
-    #       dims too. Naturally, it applies for all other rand_ functions.
+    # TODO: if dims == () (it happens), the return value # pylint: disable=fixme
+    #   is not an array -> type instability also, there's probably
+    #   instability for arrays of different dims too. Naturally,
+    #   it applies for all other rand_ functions.
     return rng.randint(-(2**31), 2**31, size=shape, dtype=Torus32)
 
 

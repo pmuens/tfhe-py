@@ -20,7 +20,7 @@ from .tlwe import (
 
 
 class TGswParams:
-    def __init__(self, l: int, Bgbit: int, tlwe_params: TLweParams):
+    def __init__(self, l: int, Bgbit: int, tlwe_params: TLweParams):  # noqa: E741
         Bg = 1 << Bgbit
         halfBg = Bg // 2
 
@@ -33,7 +33,7 @@ class TGswParams:
             sum(1 << (32 - numpy.arange(1, l + 1) * Bgbit)) * halfBg
         )
 
-        self.l = l  # decomp length
+        self.l = l  # decomp length # noqa: E741
         self.Bgbit = Bgbit  # log_2(Bg)
         self.Bg = Bg  # decomposition base (must be a power of 2)
         self.halfBg = halfBg  # Bg/2
@@ -41,7 +41,7 @@ class TGswParams:
         self.tlwe_params = tlwe_params  # Params of each row
         self.kpl = (tlwe_params.k + 1) * l  # number of rows = (k+1)*l
         self.h = h  # powers of Bgbit
-        self.offset = offset  # offset = Bg/2 * (2^(32-Bgbit) + 2^(32-2*Bgbit) + ... + 2^(32-l*Bgbit)) # pylint: disable=line-too-long
+        self.offset = offset  # offset = Bg/2 * (2^(32-Bgbit) + 2^(32-2*Bgbit) + ... + 2^(32-l*Bgbit)) # pylint: disable=line-too-long # noqa: E501
 
 
 class TGswKey:
@@ -55,14 +55,14 @@ class TGswKey:
 class TGswSampleArray:
     def __init__(self, params: TGswParams, shape):
         self.k = params.tlwe_params.k
-        self.l = params.l
+        self.l = params.l  # noqa: E741
         self.samples = TLweSampleArray(params.tlwe_params, shape + (self.k + 1, self.l))
 
 
 class TGswSampleFFTArray:
     def __init__(self, params: TGswParams, shape):
         self.k = params.tlwe_params.k
-        self.l = params.l
+        self.l = params.l  # noqa: E741
         self.samples = TLweSampleFFTArray(
             params.tlwe_params, shape + (self.k + 1, self.l)
         )
@@ -73,7 +73,7 @@ def tGswAddMuIntH(result: TGswSampleArray, messages, params: TGswParams):
     # TYPING: messages::Array{Int32, 1}
 
     k = params.tlwe_params.k
-    l = params.l
+    l = params.l  # noqa: E741
     h = params.h
 
     # compute result += H
@@ -111,7 +111,7 @@ def tGswTorus32PolynomialDecompH(
     # GPU: array operations or (more probably) a custom kernel
 
     N = params.tlwe_params.N
-    l = params.l
+    l = params.l  # noqa: E741
     Bgbit = params.Bgbit
 
     maskMod = params.maskMod
@@ -140,7 +140,7 @@ def tLweFFTAddMulRTo(res, a, b, bk_idx):
     # GPU: array operations or (more probably) a custom kernel
 
     ml, kplus1, Ndiv2 = res.shape
-    l = a.shape[-2]
+    l = a.shape[-2]  # noqa: E741
 
     d = a.reshape(ml, kplus1, l, 1, Ndiv2)
     for i in range(kplus1):
