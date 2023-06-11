@@ -23,4 +23,6 @@ python_version = "3.11"
 [scripts]
 test = "coverage run -m pytest . -s -v"
 coverage = "coverage report -m"
-typecheck = "mypy . --follow-imports=silent --ignore-missing-imports --show-column-numbers --no-pretty --warn-unreachable --strict"
+mypy = "mypy ."
+flake8 = "flake8 ."
+pylint = "pylint . --recursive true"
