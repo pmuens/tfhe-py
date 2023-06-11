@@ -1,9 +1,11 @@
 # pylint: disable=duplicate-code
 # pylint: disable=redefined-outer-name
+# type: ignore
 
 import time
 
 import numpy
+from numpy.typing import NDArray
 
 from tfhe.boot_gates import tfhe_gate_MUX_
 from tfhe.keys import (
@@ -15,23 +17,19 @@ from tfhe.keys import (
 )
 
 
-def int_to_bitarray(x):
+def int_to_bitarray(x: int) -> NDArray[numpy.bool_]:
     return numpy.array([((x >> i) & 1 != 0) for i in range(16)])
 
 
-def bitarray_to_int(x):
+def bitarray_to_int(x: NDArray[numpy.bool_]) -> int:
     int_answer = 0
     for i in range(16):
         int_answer = int_answer | (x[i] << i)
     return int_answer
 
 
-def reference_mux(bits1, bits2, bits3):
-    numpy.array([b if a else c for a, b, c in zip(bits1, bits2, bits3)])
-
-
 def encrypt():
-    rng = numpy.random.RandomState(123)  # pylint: disable=no-member
+    rng = numpy.random.RandomState(123)
 
     print("Key generation:")
     t = time.time()
@@ -64,7 +62,7 @@ def process(cloud_key, ciphertext1, ciphertext2, ciphertext3):
     return result
 
 
-def verify(secret_key, answer):
+def verify(secret_key, answer) -> None:
     print("Decryption:")
     t = time.time()
     answer_bits = tfhe_decrypt(secret_key, answer)

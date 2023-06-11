@@ -1,7 +1,11 @@
-import numpy
+from typing import cast
 
-from .keys import LweSampleArray, TFHECloudKey, modSwitchToTorus32
+import numpy
+from numpy.typing import NDArray
+
+from .keys import TFHECloudKey
 from .lwe import (
+    LweSampleArray,
     lweAddMulTo,
     lweAddTo,
     lweCopy,
@@ -12,7 +16,7 @@ from .lwe import (
     lweSubTo,
 )
 from .lwe_bootstrapping import tfhe_bootstrap_FFT, tfhe_bootstrap_woKS_FFT
-from .polynomials import Torus32
+from .numeric_functions import Torus32, modSwitchToTorus32
 
 # *#*****************************************
 # zones on the torus -> to see
@@ -29,7 +33,7 @@ from .polynomials import Torus32
 
 def tfhe_gate_NAND_(
     bk: TFHECloudKey, result: LweSampleArray, ca: LweSampleArray, cb: LweSampleArray
-):
+) -> None:
     MU = modSwitchToTorus32(1, 8)
     in_out_params = bk.params.in_out_params
 
@@ -57,7 +61,7 @@ def tfhe_gate_NAND_(
 
 def tfhe_gate_OR_(
     bk: TFHECloudKey, result: LweSampleArray, ca: LweSampleArray, cb: LweSampleArray
-):
+) -> None:
     MU = modSwitchToTorus32(1, 8)
     in_out_params = bk.params.in_out_params
 
@@ -85,7 +89,7 @@ def tfhe_gate_OR_(
 
 def tfhe_gate_AND_(
     bk: TFHECloudKey, result: LweSampleArray, ca: LweSampleArray, cb: LweSampleArray
-):
+) -> None:
     MU = modSwitchToTorus32(1, 8)
     in_out_params = bk.params.in_out_params
 
@@ -113,7 +117,7 @@ def tfhe_gate_AND_(
 
 def tfhe_gate_XOR_(
     bk: TFHECloudKey, result: LweSampleArray, ca: LweSampleArray, cb: LweSampleArray
-):
+) -> None:
     MU = modSwitchToTorus32(1, 8)
     in_out_params = bk.params.in_out_params
 
@@ -122,8 +126,8 @@ def tfhe_gate_XOR_(
     # compute: (0,1/4) + 2*(ca + cb)
     XorConst = modSwitchToTorus32(1, 4)
     lweNoiselessTrivial(temp_result, XorConst)
-    lweAddMulTo(temp_result, 2, ca)
-    lweAddMulTo(temp_result, 2, cb)
+    lweAddMulTo(temp_result, numpy.int32(2), ca)
+    lweAddMulTo(temp_result, numpy.int32(2), cb)
 
     # if the phase is positive, the result is 1/8
     # if the phase is positive, else the result is -1/8
@@ -141,7 +145,7 @@ def tfhe_gate_XOR_(
 
 def tfhe_gate_XNOR_(
     bk: TFHECloudKey, result: LweSampleArray, ca: LweSampleArray, cb: LweSampleArray
-):
+) -> None:
     MU = modSwitchToTorus32(1, 8)
     in_out_params = bk.params.in_out_params
 
@@ -150,8 +154,8 @@ def tfhe_gate_XNOR_(
     # compute: (0,-1/4) + 2*(-ca-cb)
     XnorConst = modSwitchToTorus32(-1, 4)
     lweNoiselessTrivial(temp_result, XnorConst)
-    lweSubMulTo(temp_result, 2, ca)
-    lweSubMulTo(temp_result, 2, cb)
+    lweSubMulTo(temp_result, numpy.int32(2), ca)
+    lweSubMulTo(temp_result, numpy.int32(2), cb)
 
     # if the phase is positive, the result is 1/8
     # if the phase is positive, else the result is -1/8
@@ -167,7 +171,7 @@ def tfhe_gate_XNOR_(
 # pylint: enable=pointless-string-statement
 
 
-def tfhe_gate_NOT_(result: LweSampleArray, ca: LweSampleArray):
+def tfhe_gate_NOT_(result: LweSampleArray, ca: LweSampleArray) -> None:
     lweNegate(result, ca)
 
 
@@ -180,7 +184,7 @@ def tfhe_gate_NOT_(result: LweSampleArray, ca: LweSampleArray):
 # pylint: enable=pointless-string-statement
 
 
-def tfhe_gate_COPY_(result: LweSampleArray, ca: LweSampleArray):
+def tfhe_gate_COPY_(result: LweSampleArray, ca: LweSampleArray) -> None:
     lweCopy(result, ca)
 
 
@@ -193,12 +197,17 @@ def tfhe_gate_COPY_(result: LweSampleArray, ca: LweSampleArray):
 # pylint: enable=pointless-string-statement
 
 
-def tfhe_gate_CONSTANT_(result: LweSampleArray, vals):
+def tfhe_gate_CONSTANT_(
+    result: LweSampleArray, vals: bool | NDArray[numpy.int32]
+) -> None:
     MU = modSwitchToTorus32(1, 8)
     if isinstance(vals, numpy.ndarray):
-        mus = numpy.array([MU if x else -MU for x in vals])
+        mus = cast(NDArray[Torus32], numpy.array([MU if x else -MU for x in vals]))
     else:
-        mus = numpy.ones(result.shape, Torus32) * (MU if vals else -MU)
+        mus = cast(
+            NDArray[Torus32],
+            numpy.ones(result.shape, numpy.int32) * (MU if vals else -MU),
+        )
     lweNoiselessTrivial(result, mus)
 
 
@@ -213,7 +222,7 @@ def tfhe_gate_CONSTANT_(result: LweSampleArray, vals):
 
 def tfhe_gate_NOR_(
     bk: TFHECloudKey, result: LweSampleArray, ca: LweSampleArray, cb: LweSampleArray
-):
+) -> None:
     MU = modSwitchToTorus32(1, 8)
     in_out_params = bk.params.in_out_params
 
@@ -241,7 +250,7 @@ def tfhe_gate_NOR_(
 
 def tfhe_gate_ANDNY_(
     bk: TFHECloudKey, result: LweSampleArray, ca: LweSampleArray, cb: LweSampleArray
-):
+) -> None:
     MU = modSwitchToTorus32(1, 8)
     in_out_params = bk.params.in_out_params
 
@@ -269,7 +278,7 @@ def tfhe_gate_ANDNY_(
 
 def tfhe_gate_ANDYN_(
     bk: TFHECloudKey, result: LweSampleArray, ca: LweSampleArray, cb: LweSampleArray
-):
+) -> None:
     MU = modSwitchToTorus32(1, 8)
     in_out_params = bk.params.in_out_params
 
@@ -297,7 +306,7 @@ def tfhe_gate_ANDYN_(
 
 def tfhe_gate_ORNY_(
     bk: TFHECloudKey, result: LweSampleArray, ca: LweSampleArray, cb: LweSampleArray
-):
+) -> None:
     MU = modSwitchToTorus32(1, 8)
     in_out_params = bk.params.in_out_params
 
@@ -325,7 +334,7 @@ def tfhe_gate_ORNY_(
 
 def tfhe_gate_ORYN_(
     bk: TFHECloudKey, result: LweSampleArray, ca: LweSampleArray, cb: LweSampleArray
-):
+) -> None:
     MU = modSwitchToTorus32(1, 8)
     in_out_params = bk.params.in_out_params
 
@@ -357,7 +366,7 @@ def tfhe_gate_MUX_(
     a: LweSampleArray,
     b: LweSampleArray,
     c: LweSampleArray,
-):
+) -> None:
     MU = modSwitchToTorus32(1, 8)
     in_out_params = bk.params.in_out_params
     extracted_params = bk.params.tgsw_params.tlwe_params.extracted_lweparams

@@ -1,11 +1,14 @@
+from typing import Tuple, cast
+
 import numpy
+from numpy.typing import NDArray
 
 from .numeric_functions import Torus32, float_to_int32
 
 
 # This structure represents an integer polynomial modulo X^N+1
 class IntPolynomialArray:
-    def __init__(self, N, shape):
+    def __init__(self, N: int, shape: Tuple[int, ...]) -> None:
         self.coefs = numpy.empty(shape + (N,), numpy.int32)
         self.polynomial_size = N
         self.shape = shape
@@ -13,13 +16,13 @@ class IntPolynomialArray:
 
 # This structure represents an torus polynomial modulo X^N+1
 class TorusPolynomialArray:
-    def __init__(self, N, shape):
-        self.coefsT = numpy.empty(shape + (N,), Torus32)
+    def __init__(self, N: int, shape: Tuple[int, ...]) -> None:
+        self.coefsT = numpy.empty(shape + (N,), cast(Torus32, numpy.int32))
         self.polynomial_size = N
         self.shape = shape
 
     @classmethod
-    def from_arr(cls, arr):
+    def from_arr(cls, arr: NDArray[Torus32]) -> "TorusPolynomialArray":
         obj = cls(arr.shape[-1], arr.shape[:-1])
         obj.coefsT = arr
         return obj
@@ -28,14 +31,16 @@ class TorusPolynomialArray:
 # This structure is used for FFT operations, and is a representation
 # over C of a polynomial in R[X]/X^N+1
 class LagrangeHalfCPolynomialArray:
-    def __init__(self, N, shape):
+    def __init__(self, N: int, shape: Tuple[int, ...]) -> None:
         assert N % 2 == 0
         self.coefsC = numpy.empty(shape + (N // 2,), numpy.complex128)
         self.polynomial_size = N
         self.shape = shape
 
 
-def _coefs(p):
+def _coefs(
+    p: TorusPolynomialArray | IntPolynomialArray | LagrangeHalfCPolynomialArray,
+) -> NDArray[Torus32 | numpy.int32 | numpy.complex128]:
     # TODO: different field names help with debugging, remove later # pylint: disable=fixme # noqa: E501
     if isinstance(p, IntPolynomialArray):
         return p.coefs
@@ -44,26 +49,39 @@ def _coefs(p):
     return p.coefsC
 
 
-def flat_coefs(p):
+def flat_coefs(
+    p: TorusPolynomialArray | IntPolynomialArray | LagrangeHalfCPolynomialArray,
+) -> NDArray[Torus32 | numpy.int32 | numpy.complex128]:
     cp = _coefs(p)
     return cp.reshape(numpy.prod(p.shape), cp.shape[-1])
 
 
-def polynomial_size(p):
+def polynomial_size(
+    p: TorusPolynomialArray | IntPolynomialArray | LagrangeHalfCPolynomialArray,
+) -> int:
     return p.polynomial_size
 
 
-def prepare_ifft_input_(rev_in, a, coeff, N):
+def prepare_ifft_input_(
+    rev_in: NDArray[numpy.float64],
+    a: NDArray[Torus32 | numpy.int32 | numpy.complex128],
+    coeff: float,
+    N: int,
+) -> None:
     rev_in[:, :N] = a * coeff
     rev_in[:, N:] = -rev_in[:, :N]
 
 
-def prepare_ifft_output_(res, rev_out, N):
+def prepare_ifft_output_(
+    res: NDArray[Torus32 | numpy.int32 | numpy.complex128],
+    rev_out: NDArray[numpy.complex128],
+    N: int,
+) -> None:
     # FIXME: when Julia is smart enough, can be replaced by: # pylint: disable=fixme
     res[:, : N // 2] = rev_out[:, 1 : N + 1 : 2]
 
 
-def ip_ifft_(result: LagrangeHalfCPolynomialArray, p: IntPolynomialArray):
+def ip_ifft_(result: LagrangeHalfCPolynomialArray, p: IntPolynomialArray) -> None:
     res = flat_coefs(result)
     a = flat_coefs(p)
     N = polynomial_size(p)
@@ -74,7 +92,7 @@ def ip_ifft_(result: LagrangeHalfCPolynomialArray, p: IntPolynomialArray):
     prepare_ifft_output_(res, out_arr, N)
 
 
-def tp_ifft_(result: LagrangeHalfCPolynomialArray, p: TorusPolynomialArray):
+def tp_ifft_(result: LagrangeHalfCPolynomialArray, p: TorusPolynomialArray) -> None:
     res = flat_coefs(result)
     a = flat_coefs(p)
     N = polynomial_size(p)
@@ -85,16 +103,25 @@ def tp_ifft_(result: LagrangeHalfCPolynomialArray, p: TorusPolynomialArray):
     prepare_ifft_output_(res, out_arr, N)
 
 
-def prepare_fft_input_(fw_in, a, N):
+def prepare_fft_input_(
+    fw_in: NDArray[numpy.complex128],
+    a: NDArray[Torus32 | numpy.int32 | numpy.complex128],
+    N: int,
+) -> None:
     fw_in[:, 0 : N + 1 : 2] = 0
     fw_in[:, 1 : N + 1 : 2] = a
 
 
-def prepare_fft_output_(res, fw_out, coeff, N):
+def prepare_fft_output_(
+    res: NDArray[Torus32 | numpy.int32 | numpy.complex128],
+    fw_out: NDArray[numpy.float64],
+    coeff: float,
+    N: int,
+) -> None:
     res[:, :] = float_to_int32(fw_out[:, :N] * coeff)
 
 
-def tp_fft_(result: TorusPolynomialArray, p: LagrangeHalfCPolynomialArray):
+def tp_fft_(result: TorusPolynomialArray, p: LagrangeHalfCPolynomialArray) -> None:
     res = flat_coefs(result)
     a = flat_coefs(p)
     N = polynomial_size(p)
@@ -105,13 +132,13 @@ def tp_fft_(result: TorusPolynomialArray, p: LagrangeHalfCPolynomialArray):
 
     # the first part is from the original libtfhe;
     # the second part is from a different FFT scaling in Julia
-    coeff = (2**32 / N) * (2 * N)
+    coeff: float = (2**32 / N) * (2 * N)
     prepare_fft_output_(res, out_arr, coeff, N)
 
 
 def tp_add_mul_(
     result: TorusPolynomialArray, poly1: IntPolynomialArray, poly2: TorusPolynomialArray
-):
+) -> None:
     N = polynomial_size(result)
     tmp1 = LagrangeHalfCPolynomialArray(N, poly1.shape)
     tmp2 = LagrangeHalfCPolynomialArray(N, poly2.shape)
@@ -128,7 +155,7 @@ def tp_add_mul_(
 
 
 # sets to zero
-def lp_clear_(reps: LagrangeHalfCPolynomialArray):
+def lp_clear_(reps: LagrangeHalfCPolynomialArray) -> None:
     reps.coefsC.fill(0)
 
 
@@ -137,7 +164,7 @@ def lp_mul_(
     result: LagrangeHalfCPolynomialArray,
     a: LagrangeHalfCPolynomialArray,
     b: LagrangeHalfCPolynomialArray,
-):
+) -> None:
     numpy.copyto(result.coefsC, a.coefsC * b.coefsC)
 
 
@@ -145,17 +172,19 @@ def lp_mul_(
 
 
 # TorusPolynomial = 0
-def tp_clear_(result: TorusPolynomialArray):
+def tp_clear_(result: TorusPolynomialArray) -> None:
     result.coefsT.fill(0)
 
 
 # TorusPolynomial += TorusPolynomial
-def tp_add_to_(result: TorusPolynomialArray, poly2: TorusPolynomialArray):
-    result.coefsT += poly2.coefsT
+def tp_add_to_(result: TorusPolynomialArray, poly2: TorusPolynomialArray) -> None:
+    result.coefsT = cast(NDArray[Torus32], result.coefsT + poly2.coefsT)
 
 
 # result = (X^ai-1) * source
-def tp_mul_by_xai_minus_one_(out: TorusPolynomialArray, ais, in_: TorusPolynomialArray):
+def tp_mul_by_xai_minus_one_(
+    out: TorusPolynomialArray, ais: NDArray[numpy.int32], in_: TorusPolynomialArray
+) -> None:
     out_c = out.coefsT
     in_c = in_.coefsT
 
@@ -180,7 +209,9 @@ def tp_mul_by_xai_minus_one_(out: TorusPolynomialArray, ais, in_: TorusPolynomia
 
 
 # result= X^{a}*source
-def tp_mul_by_xai_(out, ais, in_):
+def tp_mul_by_xai_(
+    out: TorusPolynomialArray, ais: NDArray[numpy.int32], in_: TorusPolynomialArray
+) -> None:
     out_c = out.coefsT
     in_c = in_.coefsT
 

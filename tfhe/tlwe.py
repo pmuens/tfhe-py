@@ -1,7 +1,11 @@
+from typing import Tuple, cast
+
 import numpy
+from numpy.typing import NDArray
 
 from .lwe import LweParams, LweSampleArray
 from .numeric_functions import (
+    Torus32,
     rand_gaussian_torus32,
     rand_uniform_int32,
     rand_uniform_torus32,
@@ -22,7 +26,7 @@ from .polynomials import (
 
 
 class TLweParams:
-    def __init__(self, N: int, k: int, alpha_min: float, alpha_max: float):
+    def __init__(self, N: int, k: int, alpha_min: float, alpha_max: float) -> None:
         self.N = N  # a power of 2: degree of the polynomials
         self.k = k  # number of polynomials in the mask
         self.alpha_min = alpha_min  # minimal noise s.t. the sample is secure
@@ -33,7 +37,7 @@ class TLweParams:
 
 
 class TLweKey:
-    def __init__(self, rng, params: TLweParams):
+    def __init__(self, rng: numpy.random.RandomState, params: TLweParams) -> None:
         N = params.N
         k = params.k
         # GPU: array operation or RNG on device
@@ -45,7 +49,7 @@ class TLweKey:
 
 
 class TLweSampleArray:
-    def __init__(self, params: TLweParams, shape):
+    def __init__(self, params: TLweParams, shape: Tuple[int, ...]) -> None:
         self.k = params.k
 
         # array of length k+1: mask + right term
@@ -58,7 +62,7 @@ class TLweSampleArray:
 
 
 class TLweSampleFFTArray:
-    def __init__(self, params: TLweParams, shape):
+    def __init__(self, params: TLweParams, shape: Tuple[int, ...]) -> None:
         self.k = params.k
 
         # array of length k+1: mask + right term
@@ -76,7 +80,7 @@ def tLweExtractLweSampleIndex(
     index: int,
     params: LweParams,
     rparams: TLweParams,
-):
+) -> None:
     N = rparams.N
     k = rparams.k
     assert params.n == k * N
@@ -91,19 +95,21 @@ def tLweExtractLweSampleIndex(
 
 def tLweExtractLweSample(
     result: LweSampleArray, x: TLweSampleArray, params: LweParams, rparams: TLweParams
-):
+) -> None:
     tLweExtractLweSampleIndex(result, x, 0, params, rparams)
 
 
 # create an homogeneous tlwe sample
-def tLweSymEncryptZero(rng, result: TLweSampleArray, alpha: float, key: TLweKey):
+def tLweSymEncryptZero(
+    rng: numpy.random.RandomState, result: TLweSampleArray, alpha: float, key: TLweKey
+) -> None:
     N = key.params.N
     k = key.params.k
 
     # TODO: use an appropriate method # pylint: disable=fixme
 
     result.a.coefsT[:, :, :, k, :] = rand_gaussian_torus32(
-        rng, 0, alpha, result.shape + (N,)
+        rng, cast(Torus32, 0), alpha, result.shape + (N,)
     )
 
     result.a.coefsT[:, :, :, :k, :] = rand_uniform_torus32(rng, result.shape + (k, N))
@@ -119,7 +125,9 @@ def tLweSymEncryptZero(rng, result: TLweSampleArray, alpha: float, key: TLweKey)
     tp_fft_(tmpr, tmp3)
 
     for i in range(k):
-        result.a.coefsT[:, :, :, k, :] += tmpr.coefsT[:, :, :, i, :]
+        result.a.coefsT[:, :, :, k, :] = (
+            result.a.coefsT[:, :, :, k, :] + tmpr.coefsT[:, :, :, i, :]
+        )
 
     result.current_variances.fill(alpha**2)
 
@@ -128,7 +136,7 @@ def tLweSymEncryptZero(rng, result: TLweSampleArray, alpha: float, key: TLweKey)
 
 
 # result = sample
-def tLweCopy(result: TLweSampleArray, sample: TLweSampleArray):
+def tLweCopy(result: TLweSampleArray, sample: TLweSampleArray) -> None:
     # GPU: array operations or a custom kernel
     numpy.copyto(
         result.a.coefsT, sample.a.coefsT
@@ -137,7 +145,7 @@ def tLweCopy(result: TLweSampleArray, sample: TLweSampleArray):
 
 
 # result = (0,mu)
-def tLweNoiselessTrivial(result: TLweSampleArray, mu: TorusPolynomialArray):
+def tLweNoiselessTrivial(result: TLweSampleArray, mu: TorusPolynomialArray) -> None:
     # GPU: array operations or a custom kernel
     tp_clear_(result.a)
     result.a.coefsT[
@@ -147,26 +155,28 @@ def tLweNoiselessTrivial(result: TLweSampleArray, mu: TorusPolynomialArray):
 
 
 # result = result + sample
-def tLweAddTo(result: TLweSampleArray, sample: TLweSampleArray):
+def tLweAddTo(result: TLweSampleArray, sample: TLweSampleArray) -> None:
     # GPU: array operations or a custom kernel
     tp_add_to_(result.a, sample.a)
     result.current_variances += sample.current_variances
 
 
 # mult externe de X^ai-1 par bki
-def tLweMulByXaiMinusOne(result: TLweSampleArray, ai, bk: TLweSampleArray):
+def tLweMulByXaiMinusOne(
+    result: TLweSampleArray, ai: NDArray[numpy.int32], bk: TLweSampleArray
+) -> None:
     # TYPING: ai::Array{Int32}
     tp_mul_by_xai_minus_one_(result.a, ai, bk.a)
 
 
 # Computes the inverse FFT of the coefficients of the TLWE sample
-def tLweToFFTConvert(result: TLweSampleFFTArray, source: TLweSampleArray):
+def tLweToFFTConvert(result: TLweSampleFFTArray, source: TLweSampleArray) -> None:
     tp_ifft_(result.a, source.a)
     numpy.copyto(result.current_variances, source.current_variances)
 
 
 # Computes the FFT of the coefficients of the TLWEfft sample
-def tLweFromFFTConvert(result: TLweSampleArray, source: TLweSampleFFTArray):
+def tLweFromFFTConvert(result: TLweSampleArray, source: TLweSampleFFTArray) -> None:
     tp_fft_(result.a, source.a)
     numpy.copyto(result.current_variances, source.current_variances)
 
@@ -175,6 +185,6 @@ def tLweFromFFTConvert(result: TLweSampleArray, source: TLweSampleFFTArray):
 
 
 # result = (0,0)
-def tLweFFTClear(result: TLweSampleFFTArray):
+def tLweFFTClear(result: TLweSampleFFTArray) -> None:
     lp_clear_(result.a)
     result.current_variances.fill(0.0)

@@ -1,29 +1,46 @@
+from typing import NewType, Tuple, cast
+
 import numpy
+from numpy.typing import NDArray
 
-Torus32 = numpy.int32
+Torus32 = NewType("Torus32", numpy.int32)
 
 
-def rand_uniform_int32(rng, shape):
+def rand_uniform_int32(
+    rng: numpy.random.RandomState, shape: Tuple[int, ...]
+) -> NDArray[numpy.int32]:
     return rng.randint(0, 2, size=shape, dtype=numpy.int32)
 
 
-def rand_uniform_torus32(rng, shape):
+def rand_uniform_torus32(
+    rng: numpy.random.RandomState, shape: Tuple[int, ...]
+) -> Torus32 | NDArray[Torus32]:
     # TODO: if dims == () (it happens), the return value # pylint: disable=fixme
     #   is not an array -> type instability also, there's probably
     #   instability for arrays of different dims too. Naturally,
     #   it applies for all other rand_ functions.
-    return rng.randint(-(2**31), 2**31, size=shape, dtype=Torus32)
+    return cast(
+        NDArray[Torus32],
+        rng.randint(-(2**31), 2**31, size=shape, dtype=numpy.int32),
+    )
 
 
-def rand_gaussian_float(rng, sigma: float, shape):
+def rand_gaussian_float(
+    rng: numpy.random.RandomState, sigma: float, shape: Tuple[int, ...]
+) -> NDArray[numpy.float64]:
     return rng.normal(size=shape, scale=sigma)
 
 
 # Gaussian sample centered in message, with standard deviation sigma
-def rand_gaussian_torus32(rng, message: Torus32, sigma: float, shape):
+def rand_gaussian_torus32(
+    rng: numpy.random.RandomState,
+    message: Torus32,
+    sigma: float,
+    shape: Tuple[int, ...],
+) -> Torus32:
     # Attention: all the implementation will use the stdev instead of the
     #   gaussian fourier param
-    return message + dtot32(rng.normal(size=shape, scale=sigma))
+    return cast(Torus32, message + dtot32(rng.normal(size=shape, scale=sigma)))
 
 
 # Used to approximate the phase to the nearest message possible in the message space
@@ -31,13 +48,16 @@ def rand_gaussian_torus32(rng, message: Torus32, sigma: float, shape):
 #   (how many messages possible)
 #
 # "work on 63 bits instead of 64, because in our practical cases, it's more precise"
-def modSwitchFromTorus32(phase: Torus32, Msize: int):
+def modSwitchFromTorus32(phase: Torus32, Msize: int) -> NDArray[numpy.int32]:
     # TODO: check if it can be simplified (wrt type conversions) # pylint: disable=fixme
     interv = (1 << 63) // Msize * 2  # width of each intervall
     half_interval = interv // 2  # begin of the first intervall
     phase64 = (phase.astype(numpy.uint32).astype(numpy.uint64) << 32) + half_interval
     # floor to the nearest multiples of interv
-    return (phase64 // interv).astype(numpy.int64).astype(numpy.int32)
+    return cast(
+        NDArray[numpy.int32],
+        (phase64 // interv).astype(numpy.int64).astype(numpy.int32),
+    )
 
 
 # Used to approximate the phase to the nearest message possible in the message space
@@ -45,21 +65,21 @@ def modSwitchFromTorus32(phase: Torus32, Msize: int):
 #   (how many messages possible)
 #
 # "work on 63 bits instead of 64, because in our practical cases, it's more precise"
-def modSwitchToTorus32(mu: int, Msize: int):
+def modSwitchToTorus32(mu: int, Msize: int) -> Torus32:
     interv = ((1 << 63) // Msize) * 2  # width of each intervall
     phase64 = mu * interv
     # floor to the nearest multiples of interv
-    return Torus32(phase64 >> 32)
+    return cast(Torus32, numpy.int32(phase64 >> 32))
 
 
 # from double to Torus32
-def dtot32(d: float):
-    return ((d - numpy.trunc(d)) * 2**32).astype(numpy.int32)
+def dtot32(d: NDArray[numpy.float64]) -> Torus32:
+    return cast(Torus32, ((d - numpy.trunc(d)) * 2**32).astype(numpy.int32))
 
 
-def int64_to_int32(x: int):
+def int64_to_int32(x: numpy.int64) -> numpy.int32:
     return x.astype(numpy.int32)
 
 
-def float_to_int32(x: float):
-    return numpy.round(x).astype(numpy.int64).astype(numpy.int32)
+def float_to_int32(x: NDArray[numpy.float64]) -> numpy.int32:
+    return cast(numpy.int32, numpy.round(x).astype(numpy.int64).astype(numpy.int32))

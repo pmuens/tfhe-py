@@ -1,17 +1,20 @@
-import numpy
+from typing import Tuple, cast
 
-from .numeric_functions import Torus32, int64_to_int32
+import numpy
+from numpy.typing import NDArray
+
+from .numeric_functions import int64_to_int32
 from .polynomials import (
     IntPolynomialArray,
     LagrangeHalfCPolynomialArray,
     TorusPolynomialArray,
+    ip_ifft_,
 )
 from .tlwe import (
     TLweKey,
     TLweParams,
     TLweSampleArray,
     TLweSampleFFTArray,
-    ip_ifft_,
     tLweFFTClear,
     tLweFromFFTConvert,
     tLweSymEncryptZero,
@@ -20,17 +23,19 @@ from .tlwe import (
 
 
 class TGswParams:
-    def __init__(self, l: int, Bgbit: int, tlwe_params: TLweParams):  # noqa: E741
+    def __init__(
+        self, l: int, Bgbit: int, tlwe_params: TLweParams  # noqa: E741
+    ) -> None:
         Bg = 1 << Bgbit
         halfBg = Bg // 2
 
-        h = Torus32(1) << (
+        h = numpy.int32(1) << (
             32 - numpy.arange(1, l + 1) * Bgbit
         )  # 1/(Bg^(i+1)) as a Torus32
 
         # offset = Bg/2 * (2^(32-Bgbit) + 2^(32-2*Bgbit) + ... + 2^(32-l*Bgbit))
         offset = int64_to_int32(
-            sum(1 << (32 - numpy.arange(1, l + 1) * Bgbit)) * halfBg
+            cast(numpy.int64, sum(1 << (32 - numpy.arange(1, l + 1) * Bgbit)) * halfBg)
         )
 
         self.l = l  # decomp length # noqa: E741
@@ -45,7 +50,7 @@ class TGswParams:
 
 
 class TGswKey:
-    def __init__(self, rng, params: TGswParams):
+    def __init__(self, rng: numpy.random.RandomState, params: TGswParams) -> None:
         tlwe_key = TLweKey(rng, params.tlwe_params)
         self.params = params  # the parameters
         self.tlwe_params = params.tlwe_params  # the tlwe params of each rows
@@ -53,14 +58,14 @@ class TGswKey:
 
 
 class TGswSampleArray:
-    def __init__(self, params: TGswParams, shape):
+    def __init__(self, params: TGswParams, shape: Tuple[int, ...]) -> None:
         self.k = params.tlwe_params.k
         self.l = params.l  # noqa: E741
         self.samples = TLweSampleArray(params.tlwe_params, shape + (self.k + 1, self.l))
 
 
 class TGswSampleFFTArray:
-    def __init__(self, params: TGswParams, shape):
+    def __init__(self, params: TGswParams, shape: Tuple[int, ...]) -> None:
         self.k = params.tlwe_params.k
         self.l = params.l  # noqa: E741
         self.samples = TLweSampleFFTArray(
@@ -69,7 +74,9 @@ class TGswSampleFFTArray:
 
 
 # Result += mu*H, mu integer
-def tGswAddMuIntH(result: TGswSampleArray, messages, params: TGswParams):
+def tGswAddMuIntH(
+    result: TGswSampleArray, messages: NDArray[numpy.int32], params: TGswParams
+) -> None:
     # TYPING: messages::Array{Int32, 1}
 
     k = params.tlwe_params.k
@@ -85,21 +92,27 @@ def tGswAddMuIntH(result: TGswSampleArray, messages, params: TGswParams):
     # TODO: use an appropriate method # pylint: disable=fixme
     # TODO: not sure if it's possible to fully vectorize it # pylint: disable=fixme
     for bloc in range(k + 1):
-        result.samples.a.coefsT[:, bloc, :, bloc, 0] += messages.reshape(
-            messages.size, 1
-        ) * h.reshape(1, l)
+        result.samples.a.coefsT[:, bloc, :, bloc, 0] = result.samples.a.coefsT[
+            :, bloc, :, bloc, 0
+        ] + messages.reshape(messages.size, 1) * h.reshape(1, l)
 
 
 # Result = tGsw(0)
-def tGswEncryptZero(rng, result: TGswSampleArray, alpha: float, key: TGswKey):
+def tGswEncryptZero(
+    rng: numpy.random.RandomState, result: TGswSampleArray, alpha: float, key: TGswKey
+) -> None:
     rlkey = key.tlwe_key
     tLweSymEncryptZero(rng, result.samples, alpha, rlkey)
 
 
 # encrypts a constant message
 def tGswSymEncryptInt(
-    rng, result: TGswSampleArray, messages, alpha: float, key: TGswKey
-):
+    rng: numpy.random.RandomState,
+    result: TGswSampleArray,
+    messages: NDArray[numpy.int32],
+    alpha: float,
+    key: TGswKey,
+) -> None:
     # TYPING: messages::Array{Int32, 1}
     tGswEncryptZero(rng, result, alpha, key)
     tGswAddMuIntH(result, messages, key.params)
@@ -107,7 +120,7 @@ def tGswSymEncryptInt(
 
 def tGswTorus32PolynomialDecompH(
     result: IntPolynomialArray, sample: TorusPolynomialArray, params: TGswParams
-):
+) -> None:
     # GPU: array operations or (more probably) a custom kernel
 
     N = params.tlwe_params.N
@@ -118,7 +131,7 @@ def tGswTorus32PolynomialDecompH(
     halfBg = params.halfBg
     offset = params.offset
 
-    def decal(p):
+    def decal(p: NDArray[numpy.int32]) -> NDArray[numpy.int32]:
         return 32 - p * Bgbit
 
     ps = numpy.arange(1, l + 1).reshape(1, 1, l, 1)
@@ -132,11 +145,16 @@ def tGswTorus32PolynomialDecompH(
 
 # For all the kpl TLWE samples composing the TGSW sample
 # It computes the inverse FFT of the coefficients of the TLWE sample
-def tGswToFFTConvert(result: TGswSampleFFTArray, source: TGswSampleArray):
+def tGswToFFTConvert(result: TGswSampleFFTArray, source: TGswSampleArray) -> None:
     tLweToFFTConvert(result.samples, source.samples)
 
 
-def tLweFFTAddMulRTo(res, a, b, bk_idx):
+def tLweFFTAddMulRTo(
+    res: NDArray[numpy.complex128],
+    a: NDArray[numpy.complex128],
+    b: NDArray[numpy.complex128],
+    bk_idx: int,
+) -> None:
     # GPU: array operations or (more probably) a custom kernel
 
     ml, kplus1, Ndiv2 = res.shape
@@ -152,12 +170,12 @@ def tLweFFTAddMulRTo(res, a, b, bk_idx):
 def tGswFFTExternMulToTLwe(
     accum: TLweSampleArray,
     gsw: TGswSampleFFTArray,
-    bk_idx,
+    bk_idx: int,
     params: TGswParams,
     tmpa: TLweSampleFFTArray,
     deca: IntPolynomialArray,
     decaFFT: LagrangeHalfCPolynomialArray,
-):
+) -> None:
     tGswTorus32PolynomialDecompH(deca, accum.a, params)
 
     ip_ifft_(decaFFT, deca)

@@ -1,3 +1,8 @@
+from typing import Tuple, cast
+
+import numpy
+from numpy.typing import NDArray
+
 from .lwe import LweKey, LweKeySwitchKey, LweSampleArray, lweKeySwitch
 from .numeric_functions import Torus32, modSwitchFromTorus32
 from .polynomials import (
@@ -27,8 +32,12 @@ from .tlwe import (
 
 
 def lwe_bootstrapping_key(
-    rng, ks_t: int, ks_basebit: int, key_in: LweKey, rgsw_key: TGswKey
-):
+    rng: numpy.random.RandomState,
+    ks_t: int,
+    ks_basebit: int,
+    key_in: LweKey,
+    rgsw_key: TGswKey,
+) -> Tuple[TGswSampleArray, LweKeySwitchKey]:
     bk_params = rgsw_key.params
     in_out_params = key_in.params
     accum_params = bk_params.tlwe_params
@@ -53,8 +62,13 @@ def lwe_bootstrapping_key(
 
 class LweBootstrappingKeyFFT:
     def __init__(
-        self, rng, ks_t: int, ks_basebit: int, lwe_key: LweKey, tgsw_key: TGswKey
-    ):
+        self,
+        rng: numpy.random.RandomState,
+        ks_t: int,
+        ks_basebit: int,
+        lwe_key: LweKey,
+        tgsw_key: TGswKey,
+    ) -> None:
         in_out_params = lwe_key.params
         bk_params = tgsw_key.params
         accum_params = bk_params.tlwe_params
@@ -83,12 +97,12 @@ def tfhe_MuxRotate_FFT(
     accum: TLweSampleArray,
     bki: TGswSampleFFTArray,
     bk_idx: int,
-    barai,
+    barai: NDArray[numpy.int32],
     bk_params: TGswParams,
     tmpa: TLweSampleFFTArray,
     deca: IntPolynomialArray,
     decaFFT: LagrangeHalfCPolynomialArray,
-):
+) -> None:
     # TYPING: barai::Array{Int32}
     # ACC = BKi*[(X^barai-1)*ACC]+ACC
     # temp = (X^barai-1)*ACC
@@ -115,10 +129,10 @@ def tfhe_MuxRotate_FFT(
 def tfhe_blindRotate_FFT(
     accum: TLweSampleArray,
     bkFFT: TGswSampleFFTArray,
-    bara,
+    bara: NDArray[numpy.int32],
     n: int,
     bk_params: TGswParams,
-):
+) -> None:
     # TYPING: bara::Array{Int32}
     temp = TLweSampleArray(bk_params.tlwe_params, accum.shape)
     temp2 = temp
@@ -169,11 +183,11 @@ def tfhe_blindRotateAndExtract_FFT(
     result: LweSampleArray,
     v: TorusPolynomialArray,
     bk: TGswSampleFFTArray,
-    barb,
-    bara,
+    barb: NDArray[numpy.int32],
+    bara: NDArray[numpy.int32],
     n: int,
     bk_params: TGswParams,
-):
+) -> None:
     # TYPING: barb::Array{Int32},
     # TYPING: bara::Array{Int32}
 
@@ -212,7 +226,7 @@ def tfhe_blindRotateAndExtract_FFT(
 
 def tfhe_bootstrap_woKS_FFT(
     result: LweSampleArray, bk: LweBootstrappingKeyFFT, mu: Torus32, x: LweSampleArray
-):
+) -> None:
     bk_params = bk.bk_params
     accum_params = bk.accum_params
     in_params = bk.in_out_params
@@ -223,8 +237,8 @@ def tfhe_bootstrap_woKS_FFT(
 
     # Modulus switching
     # GPU: array operations or a custom kernel
-    barb = modSwitchFromTorus32(x.b, 2 * N)
-    bara = modSwitchFromTorus32(x.a, 2 * N)
+    barb = modSwitchFromTorus32(cast(Torus32, x.b), 2 * N)
+    bara = modSwitchFromTorus32(cast(Torus32, x.a), 2 * N)
 
     # the initial testvec = [mu,mu,mu,...,mu]
     # TODO: use an appropriate method # pylint: disable=fixme
@@ -248,7 +262,7 @@ def tfhe_bootstrap_woKS_FFT(
 
 def tfhe_bootstrap_FFT(
     result: LweSampleArray, bk: LweBootstrappingKeyFFT, mu: Torus32, x: LweSampleArray
-):
+) -> None:
     u = LweSampleArray(bk.accum_params.extracted_lweparams, result.shape)
 
     tfhe_bootstrap_woKS_FFT(u, bk, mu, x)

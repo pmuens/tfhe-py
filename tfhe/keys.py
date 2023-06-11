@@ -1,4 +1,7 @@
+from typing import Tuple, cast
+
 import numpy
+from numpy.typing import NDArray
 
 from .lwe import LweKey, LweParams, LweSampleArray, lwePhase, lweSymEncrypt
 from .lwe_bootstrapping import LweBootstrappingKeyFFT
@@ -8,14 +11,14 @@ from .tlwe import TLweParams
 
 
 class TFHEParameters:
-    def __init__(self):
+    def __init__(self) -> None:
         # In the reference implementation there was a parameter `minimum_lambda` here,
         # which was unused.
 
         # the parameters are only implemented for about 128bit of security!
 
-        def mul_by_sqrt_two_over_pi(x):
-            return x * (2 / numpy.pi) ** 0.5
+        def mul_by_sqrt_two_over_pi(x: float) -> float:
+            return cast(float, x * (2 / numpy.pi) ** 0.5)
 
         N = 1024
         k = 1
@@ -41,23 +44,27 @@ class TFHEParameters:
 
 
 class TFHESecretKey:
-    def __init__(self, params: TFHEParameters, lwe_key: LweKey, tgsw_key: TGswKey):
+    def __init__(
+        self, params: TFHEParameters, lwe_key: LweKey, tgsw_key: TGswKey
+    ) -> None:
         self.params = params
         self.lwe_key = lwe_key
         self.tgsw_key = tgsw_key
 
 
 class TFHECloudKey:
-    def __init__(self, params: TFHEParameters, bkFFT: LweBootstrappingKeyFFT):
+    def __init__(self, params: TFHEParameters, bkFFT: LweBootstrappingKeyFFT) -> None:
         self.params = params
         self.bkFFT = bkFFT
 
 
-def tfhe_parameters(key):  # union(TFHESecretKey, TFHECloudKey)
+def tfhe_parameters(
+    key: TFHECloudKey,
+) -> TFHEParameters:  # union(TFHESecretKey, TFHECloudKey)
     return key.params
 
 
-def tfhe_key_pair(rng):
+def tfhe_key_pair(rng: numpy.random.RandomState) -> Tuple[TFHESecretKey, TFHECloudKey]:
     params = TFHEParameters()
 
     lwe_key = LweKey.from_rng(rng, params.in_out_params)
@@ -72,7 +79,11 @@ def tfhe_key_pair(rng):
     return secret_key, cloud_key
 
 
-def tfhe_encrypt(rng, key: TFHESecretKey, message):
+def tfhe_encrypt(
+    rng: numpy.random.RandomState,
+    key: TFHESecretKey,
+    message: NDArray[numpy.bool_],
+) -> LweSampleArray:
     result = empty_ciphertext(key.params, message.shape)
     _1s8 = modSwitchToTorus32(1, 8)
     mus = numpy.array([_1s8 if bit else -_1s8 for bit in message])
@@ -83,10 +94,12 @@ def tfhe_encrypt(rng, key: TFHESecretKey, message):
     return result
 
 
-def tfhe_decrypt(key: TFHESecretKey, ciphertext: LweSampleArray):
+def tfhe_decrypt(
+    key: TFHESecretKey, ciphertext: LweSampleArray
+) -> NDArray[numpy.bool_]:
     mus = lwePhase(ciphertext, key.lwe_key)
     return numpy.array([(mu > 0) for mu in mus])
 
 
-def empty_ciphertext(params: TFHEParameters, shape):
+def empty_ciphertext(params: TFHEParameters, shape: Tuple[int, ...]) -> LweSampleArray:
     return LweSampleArray(params.in_out_params, shape)
