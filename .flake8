@@ -1,6 +1,6 @@
 [flake8]
 max-line-length = 88
+exclude = .git,.venv,__pycache__,build,dist
 extend-ignore =
   # Whitespace before ':' (E203)
   E203
-
