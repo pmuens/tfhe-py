@@ -71,7 +71,7 @@ def _encrypted_minimum(
     # `tmp1` is the result of the comparison:
     #   - 0 if `a` is larger
     #   - 1 if `b` is larger
-    # Select the max and copy it to the `result``.
+    # Select the max and copy it to the `result`.
     tfhe_gate_MUX_(cloud_key, result, tmp1, b, a)
 
     return result
