@@ -1,3 +1,6 @@
+import time
+import warnings
+
 import numpy
 
 from tfhe.boot_gates import tfhe_gate_CONSTANT_, tfhe_gate_MUX_, tfhe_gate_XNOR_
@@ -14,8 +17,14 @@ from tfhe.utils import bitarray_to_int, int_to_bitarray
 
 rng = numpy.random.RandomState(123)
 
+EXPECTED = 42
+
 
 def test() -> None:
+    assert run() == EXPECTED
+
+
+def run() -> int:
     secret_key, cloud_key = tfhe_key_pair(rng)
 
     bits42 = int_to_bitarray(42)
@@ -29,7 +38,7 @@ def test() -> None:
     answer_bits = tfhe_decrypt(secret_key, result)
     answer_int = bitarray_to_int(answer_bits)
 
-    assert answer_int == 42
+    return answer_int
 
 
 def _encrypted_minimum(
@@ -66,3 +75,15 @@ def _encrypted_minimum(
     tfhe_gate_MUX_(cloud_key, result, tmp1, b, a)
 
     return result
+
+
+if __name__ == "__main__":
+    # FIXME: Ignores overflow detected by Numpy in # pylint: disable=fixme
+    #   `lweKeySwitchTranslate_fromArray` method.
+    warnings.filterwarnings("ignore", "overflow encountered in scalar subtract")
+
+    print(f"Expected:\t {EXPECTED}")
+    t = time.time()
+    res = run()
+    print(f"Result:\t\t {res}")
+    print(f"Time:\t\t {time.time() - t} seconds")
