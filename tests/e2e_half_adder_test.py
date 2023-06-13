@@ -6,7 +6,7 @@ from typing import Tuple
 
 import numpy
 
-from tfhe.boot_gates import tfhe_gate_AND_, tfhe_gate_XOR_
+from tfhe.boot_gates import AND, XOR
 from tfhe.keys import (
     empty_ciphertext,
     tfhe_decrypt,
@@ -61,8 +61,8 @@ def run(bit1: bool, bit2: bool) -> Tuple[bool, bool]:
     result_carry = empty_ciphertext(params, shape)
     result_sum = empty_ciphertext(params, shape)
 
-    tfhe_gate_AND_(cloud_key, result_carry, ciphertext1, ciphertext2)
-    tfhe_gate_XOR_(cloud_key, result_sum, ciphertext1, ciphertext2)
+    AND(cloud_key, result_carry, ciphertext1, ciphertext2)
+    XOR(cloud_key, result_sum, ciphertext1, ciphertext2)
 
     answer_bits_carry = tfhe_decrypt(secret_key, result_carry)
     answer_bits_sum = tfhe_decrypt(secret_key, result_sum)
@@ -72,7 +72,7 @@ def run(bit1: bool, bit2: bool) -> Tuple[bool, bool]:
 
 if __name__ == "__main__":
     # FIXME: Ignores overflow detected by Numpy in # pylint: disable=fixme
-    #   `lweKeySwitchTranslate_fromArray` method.
+    #   `lwe_key_switch_translate_from_array` method.
     warnings.filterwarnings("ignore", "overflow encountered in scalar subtract")
 
     total = 0.0

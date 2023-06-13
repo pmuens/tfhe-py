@@ -5,7 +5,7 @@ import warnings
 import numpy
 from numpy.typing import NDArray
 
-from tfhe.boot_gates import tfhe_gate_NAND_
+from tfhe.boot_gates import NAND
 from tfhe.keys import (
     empty_ciphertext,
     tfhe_decrypt,
@@ -36,7 +36,7 @@ def run() -> NDArray[numpy.bool_]:
 
     result = empty_ciphertext(params, ciphertext1.shape)
 
-    tfhe_gate_NAND_(cloud_key, result, ciphertext1, ciphertext2)
+    NAND(cloud_key, result, ciphertext1, ciphertext2)
 
     answer_bits = tfhe_decrypt(secret_key, result)
 
@@ -45,7 +45,7 @@ def run() -> NDArray[numpy.bool_]:
 
 if __name__ == "__main__":
     # FIXME: Ignores overflow detected by Numpy in # pylint: disable=fixme
-    #   `lweKeySwitchTranslate_fromArray` method.
+    #   `lwe_key_switch_translate_from_array` method.
     warnings.filterwarnings("ignore", "overflow encountered in scalar subtract")
 
     print(f"Expected:\t {EXPECTED}")

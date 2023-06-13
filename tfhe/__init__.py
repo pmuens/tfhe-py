@@ -1,6 +1,6 @@
-from .boot_gates import tfhe_gate_CONSTANT_  # noqa: F401
-from .boot_gates import tfhe_gate_MUX_  # noqa: F401
-from .boot_gates import tfhe_gate_XNOR_  # noqa: F401
+from .boot_gates import CONSTANT  # noqa: F401
+from .boot_gates import MUX  # noqa: F401
+from .boot_gates import XNOR  # noqa: F401
 from .keys import empty_ciphertext  # noqa: F401
 from .keys import tfhe_decrypt  # noqa: F401
 from .keys import tfhe_encrypt  # noqa: F401

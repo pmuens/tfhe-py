@@ -3,7 +3,7 @@ import warnings
 
 import numpy
 
-from tfhe.boot_gates import tfhe_gate_CONSTANT_, tfhe_gate_MUX_, tfhe_gate_XNOR_
+from tfhe.boot_gates import CONSTANT, MUX, XNOR
 from tfhe.keys import (
     TFHECloudKey,
     empty_ciphertext,
@@ -12,7 +12,7 @@ from tfhe.keys import (
     tfhe_key_pair,
     tfhe_parameters,
 )
-from tfhe.lwe import LweSampleArray
+from tfhe.lwe import LWESampleArray
 from tfhe.utils import bitarray_to_int, int_to_bitarray
 
 rng = numpy.random.RandomState(123)
@@ -33,7 +33,7 @@ def run() -> int:
     ciphertext42 = tfhe_encrypt(rng, secret_key, bits42)
     ciphertext4711 = tfhe_encrypt(rng, secret_key, bits4711)
 
-    result = _encrypted_minimum(cloud_key, ciphertext42, ciphertext4711)
+    result = encrypted_minimum(cloud_key, ciphertext42, ciphertext4711)
 
     answer_bits = tfhe_decrypt(secret_key, result)
     answer_int = bitarray_to_int(answer_bits)
@@ -41,11 +41,11 @@ def run() -> int:
     return answer_int
 
 
-def _encrypted_minimum(
+def encrypted_minimum(
     cloud_key: TFHECloudKey,
-    a: LweSampleArray,
-    b: LweSampleArray,
-) -> LweSampleArray:
+    a: LWESampleArray,
+    b: LWESampleArray,
+) -> LWESampleArray:
     params = tfhe_parameters(cloud_key)
 
     shape = a.shape
@@ -59,27 +59,27 @@ def _encrypted_minimum(
     tmp2 = empty_ciphertext(params, (1,))
 
     # Initialize the carry to 0.
-    tfhe_gate_CONSTANT_(tmp1, False)
+    CONSTANT(tmp1, False)
 
     # Run the elementary comparator gate `n` times.
     for i in range(nb_bits):
         tmp_a = a[i : i + 1]  # type: ignore
         tmp_b = b[i : i + 1]  # type: ignore
-        tfhe_gate_XNOR_(cloud_key, tmp2, tmp_a, tmp_b)
-        tfhe_gate_MUX_(cloud_key, tmp1, tmp2, tmp1, tmp_a)
+        XNOR(cloud_key, tmp2, tmp_a, tmp_b)
+        MUX(cloud_key, tmp1, tmp2, tmp1, tmp_a)
 
     # `tmp1` is the result of the comparison:
     #   - 0 if `a` is larger
     #   - 1 if `b` is larger
     # Select the max and copy it to the `result`.
-    tfhe_gate_MUX_(cloud_key, result, tmp1, b, a)
+    MUX(cloud_key, result, tmp1, b, a)
 
     return result
 
 
 if __name__ == "__main__":
     # FIXME: Ignores overflow detected by Numpy in # pylint: disable=fixme
-    #   `lweKeySwitchTranslate_fromArray` method.
+    #   `lwe_key_switch_translate_from_array` method.
     warnings.filterwarnings("ignore", "overflow encountered in scalar subtract")
 
     print(f"Expected:\t {EXPECTED}")

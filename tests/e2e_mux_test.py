@@ -3,7 +3,7 @@ import warnings
 
 import numpy
 
-from tfhe.boot_gates import tfhe_gate_MUX_
+from tfhe.boot_gates import MUX
 from tfhe.keys import (
     empty_ciphertext,
     tfhe_decrypt,
@@ -36,7 +36,7 @@ def run() -> int:
     params = tfhe_parameters(cloud_key)
     result = empty_ciphertext(params, ciphertext2020.shape)
 
-    tfhe_gate_MUX_(cloud_key, result, ciphertext2020, ciphertext42, ciphertext12345)
+    MUX(cloud_key, result, ciphertext2020, ciphertext42, ciphertext12345)
 
     answer_bits = tfhe_decrypt(secret_key, result)
     answer_int = bitarray_to_int(answer_bits)
@@ -46,7 +46,7 @@ def run() -> int:
 
 if __name__ == "__main__":
     # FIXME: Ignores overflow detected by Numpy in # pylint: disable=fixme
-    #   `lweKeySwitchTranslate_fromArray` method.
+    #   `lwe_key_switch_translate_from_array` method.
     warnings.filterwarnings("ignore", "overflow encountered in scalar subtract")
 
     print(f"Expected:\t {EXPECTED}")

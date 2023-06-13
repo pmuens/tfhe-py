@@ -3,7 +3,7 @@ from typing import Tuple, cast
 import numpy
 from numpy.typing import NDArray
 
-from .lwe import LweParams, LweSampleArray
+from .lwe import LWEParams, LWESampleArray
 from .numeric_functions import (
     Torus32,
     rand_gaussian_torus32,
@@ -14,30 +14,30 @@ from .polynomials import (
     IntPolynomialArray,
     LagrangeHalfCPolynomialArray,
     TorusPolynomialArray,
-    ip_ifft_,
-    lp_clear_,
-    lp_mul_,
-    tp_add_to_,
-    tp_clear_,
-    tp_fft_,
-    tp_ifft_,
-    tp_mul_by_xai_minus_one_,
+    int_polynomial_ifft,
+    lagrange_polynomial_clear,
+    lagrange_polynomial_mul,
+    torus_polynomial_add_to,
+    torus_polynomial_clear,
+    torus_polynomial_fft,
+    torus_polynomial_ifft,
+    torus_polynomial_mul_by_xai_minus_one,
 )
 
 
-class TLweParams:
+class TLWEParams:
     def __init__(self, N: int, k: int, alpha_min: float, alpha_max: float) -> None:
         self.N = N  # a power of 2: degree of the polynomials
         self.k = k  # number of polynomials in the mask
         self.alpha_min = alpha_min  # minimal noise s.t. the sample is secure
         self.alpha_max = alpha_max  # maximal noise s.t. we can decrypt
-        self.extracted_lweparams = LweParams(
+        self.extracted_lwe_params = LWEParams(
             N * k, alpha_min, alpha_max
         )  # lwe params if one extracts
 
 
-class TLweKey:
-    def __init__(self, rng: numpy.random.RandomState, params: TLweParams) -> None:
+class TLWEKey:
+    def __init__(self, rng: numpy.random.RandomState, params: TLWEParams) -> None:
         N = params.N
         k = params.k
         # GPU: array operation or RNG on device
@@ -48,8 +48,8 @@ class TLweKey:
         self.key = key  # the key (i.e k binary polynomials)
 
 
-class TLweSampleArray:
-    def __init__(self, params: TLweParams, shape: Tuple[int, ...]) -> None:
+class TLWESampleArray:
+    def __init__(self, params: TLWEParams, shape: Tuple[int, ...]) -> None:
         self.k = params.k
 
         # array of length k+1: mask + right term
@@ -61,8 +61,8 @@ class TLweSampleArray:
         self.shape = shape
 
 
-class TLweSampleFFTArray:
-    def __init__(self, params: TLweParams, shape: Tuple[int, ...]) -> None:
+class TLWESampleFFTArray:
+    def __init__(self, params: TLWEParams, shape: Tuple[int, ...]) -> None:
         self.k = params.k
 
         # array of length k+1: mask + right term
@@ -74,59 +74,61 @@ class TLweSampleFFTArray:
         self.shape = shape
 
 
-def tLweExtractLweSampleIndex(
-    result: LweSampleArray,
-    x: TLweSampleArray,
+def tlwe_extract_lwe_sample_index(
+    result: LWESampleArray,
+    x: TLWESampleArray,
     index: int,
-    params: LweParams,
-    rparams: TLweParams,
+    params: LWEParams,
+    r_params: TLWEParams,
 ) -> None:
-    N = rparams.N
-    k = rparams.k
+    N = r_params.N
+    k = r_params.k
     assert params.n == k * N
 
-    # TODO: use an appropriate method to get coefsT # pylint: disable=fixme
+    # TODO: use an appropriate method to get coefs_t # pylint: disable=fixme
     a_view = result.a.reshape(result.shape + (k, N))
-    a_view[:, :, : (index + 1)] = x.a.coefsT[:, :k, index::-1]
-    a_view[:, :, (index + 1) :] = -x.a.coefsT[:, :k, :index:-1]
+    a_view[:, :, : (index + 1)] = x.a.coefs_t[:, :k, index::-1]
+    a_view[:, :, (index + 1) :] = -x.a.coefs_t[:, :k, :index:-1]
 
-    numpy.copyto(result.b, x.a.coefsT[:, k, index])
+    numpy.copyto(result.b, x.a.coefs_t[:, k, index])
 
 
-def tLweExtractLweSample(
-    result: LweSampleArray, x: TLweSampleArray, params: LweParams, rparams: TLweParams
+def tlwe_extract_lwe_sample(
+    result: LWESampleArray, x: TLWESampleArray, params: LWEParams, r_params: TLWEParams
 ) -> None:
-    tLweExtractLweSampleIndex(result, x, 0, params, rparams)
+    tlwe_extract_lwe_sample_index(result, x, 0, params, r_params)
 
 
 # create an homogeneous tlwe sample
-def tLweSymEncryptZero(
-    rng: numpy.random.RandomState, result: TLweSampleArray, alpha: float, key: TLweKey
+def tlwe_sym_encrypt_zero(
+    rng: numpy.random.RandomState, result: TLWESampleArray, alpha: float, key: TLWEKey
 ) -> None:
     N = key.params.N
     k = key.params.k
 
     # TODO: use an appropriate method # pylint: disable=fixme
 
-    result.a.coefsT[:, :, :, k, :] = rand_gaussian_torus32(
+    result.a.coefs_t[:, :, :, k, :] = rand_gaussian_torus32(
         rng, cast(Torus32, 0), alpha, result.shape + (N,)
     )
 
-    result.a.coefsT[:, :, :, :k, :] = rand_uniform_torus32(rng, result.shape + (k, N))
+    result.a.coefs_t[:, :, :, :k, :] = rand_uniform_torus32(rng, result.shape + (k, N))
 
     tmp1 = LagrangeHalfCPolynomialArray(N, key.key.shape)
     tmp2 = LagrangeHalfCPolynomialArray(N, result.shape + (k,))
     tmp3 = LagrangeHalfCPolynomialArray(N, result.shape + (k,))
-    tmpr = TorusPolynomialArray(N, result.shape + (k,))
+    tmp_r = TorusPolynomialArray(N, result.shape + (k,))
 
-    ip_ifft_(tmp1, key.key)
-    tp_ifft_(tmp2, TorusPolynomialArray.from_arr(result.a.coefsT[:, :, :, :k, :]))
-    lp_mul_(tmp3, tmp1, tmp2)
-    tp_fft_(tmpr, tmp3)
+    int_polynomial_ifft(tmp1, key.key)
+    torus_polynomial_ifft(
+        tmp2, TorusPolynomialArray.from_arr(result.a.coefs_t[:, :, :, :k, :])
+    )
+    lagrange_polynomial_mul(tmp3, tmp1, tmp2)
+    torus_polynomial_fft(tmp_r, tmp3)
 
     for i in range(k):
-        result.a.coefsT[:, :, :, k, :] = (
-            result.a.coefsT[:, :, :, k, :] + tmpr.coefsT[:, :, :, i, :]
+        result.a.coefs_t[:, :, :, k, :] = (
+            result.a.coefs_t[:, :, :, k, :] + tmp_r.coefs_t[:, :, :, i, :]
         )
 
     result.current_variances.fill(alpha**2)
@@ -136,48 +138,48 @@ def tLweSymEncryptZero(
 
 
 # result = sample
-def tLweCopy(result: TLweSampleArray, sample: TLweSampleArray) -> None:
+def tlwe_copy(result: TLWESampleArray, sample: TLWESampleArray) -> None:
     # GPU: array operations or a custom kernel
     numpy.copyto(
-        result.a.coefsT, sample.a.coefsT
+        result.a.coefs_t, sample.a.coefs_t
     )  # TODO: use an appropriate method? # pylint: disable=fixme
     numpy.copyto(result.current_variances, sample.current_variances)
 
 
 # result = (0,mu)
-def tLweNoiselessTrivial(result: TLweSampleArray, mu: TorusPolynomialArray) -> None:
+def tlwe_noiseless_trivial(result: TLWESampleArray, mu: TorusPolynomialArray) -> None:
     # GPU: array operations or a custom kernel
-    tp_clear_(result.a)
-    result.a.coefsT[
+    torus_polynomial_clear(result.a)
+    result.a.coefs_t[
         :, result.k, :
-    ] = mu.coefsT  # TODO: wrap in a function? # pylint: disable=fixme
+    ] = mu.coefs_t  # TODO: wrap in a function? # pylint: disable=fixme
     result.current_variances.fill(0.0)
 
 
 # result = result + sample
-def tLweAddTo(result: TLweSampleArray, sample: TLweSampleArray) -> None:
+def tlwe_add_to(result: TLWESampleArray, sample: TLWESampleArray) -> None:
     # GPU: array operations or a custom kernel
-    tp_add_to_(result.a, sample.a)
+    torus_polynomial_add_to(result.a, sample.a)
     result.current_variances += sample.current_variances
 
 
 # mult externe de X^ai-1 par bki
-def tLweMulByXaiMinusOne(
-    result: TLweSampleArray, ai: NDArray[numpy.int32], bk: TLweSampleArray
+def tlwe_mul_by_xai_minus_one(
+    result: TLWESampleArray, ai: NDArray[numpy.int32], bk: TLWESampleArray
 ) -> None:
     # TYPING: ai::Array{Int32}
-    tp_mul_by_xai_minus_one_(result.a, ai, bk.a)
+    torus_polynomial_mul_by_xai_minus_one(result.a, ai, bk.a)
 
 
 # Computes the inverse FFT of the coefficients of the TLWE sample
-def tLweToFFTConvert(result: TLweSampleFFTArray, source: TLweSampleArray) -> None:
-    tp_ifft_(result.a, source.a)
+def tlwe_to_fft_convert(result: TLWESampleFFTArray, source: TLWESampleArray) -> None:
+    torus_polynomial_ifft(result.a, source.a)
     numpy.copyto(result.current_variances, source.current_variances)
 
 
 # Computes the FFT of the coefficients of the TLWEfft sample
-def tLweFromFFTConvert(result: TLweSampleArray, source: TLweSampleFFTArray) -> None:
-    tp_fft_(result.a, source.a)
+def tlwe_from_fft_convert(result: TLWESampleArray, source: TLWESampleFFTArray) -> None:
+    torus_polynomial_fft(result.a, source.a)
     numpy.copyto(result.current_variances, source.current_variances)
 
 
@@ -185,6 +187,6 @@ def tLweFromFFTConvert(result: TLweSampleArray, source: TLweSampleFFTArray) -> N
 
 
 # result = (0,0)
-def tLweFFTClear(result: TLweSampleFFTArray) -> None:
-    lp_clear_(result.a)
+def tlwe_fft_clear(result: TLWESampleFFTArray) -> None:
+    lagrange_polynomial_clear(result.a)
     result.current_variances.fill(0.0)
